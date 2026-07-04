@@ -355,6 +355,9 @@ If the app talks to third-party services the user has connected
 { "app": { "credentials": ["metaads", "googleads"] } }
 ```
 
+Get the ids and names from `clawnify connections list` — see the
+naming rule below.
+
 `env` supports `required` (deploy warns if missing), `optional`
 (injected when available), and `oneOf` (at least one per group).
 
@@ -371,6 +374,16 @@ Rules:
   from `schema.ts` via drizzle-kit; no `schema.sql` to ship.
 
 ## Connections & secrets — `@clawnify/connections`
+
+**The naming rule — never invent an identifier.** Before declaring
+`credentials` or env names, run `clawnify connections list`: it shows
+the org's canonical integration ids (`googleads`, never `google_ads`),
+the fixed provider-key names (`OPENROUTER_API_KEY`, never
+`OPENROUTER_KEY`), and custom env vars already defined — each with
+connected/set state. Reuse those exact identifiers; a misspelled one
+doesn't fail the build, it silently resolves to nothing at runtime. If
+you need a custom secret that isn't listed, pick a clear name and tell
+the user to set it in the dashboard.
 
 If the app needs a third-party service or a provider API key, use
 the `@clawnify/connections` SDK. Never read credential bindings

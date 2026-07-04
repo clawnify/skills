@@ -107,6 +107,18 @@ clawnify docs [slug]       # usage README for an app (org index if omitted)
 `pull schema` refuses to clobber local uncommitted changes unless you
 pass `--force`.
 
+## Connections & env names
+
+```bash
+clawnify connections list   # the org's naming catalog
+```
+
+Lists the active org's integrations (canonical ids + connected state),
+provider API keys (fixed names + set state), and custom env vars. Read
+it before declaring `credentials` or env names in `clawnify.json` and
+reuse the exact identifiers it shows — a misspelled id or key name
+doesn't fail the build, it silently resolves to nothing at runtime.
+
 ## Workspaces (one repo, one org's apps)
 
 ```bash
