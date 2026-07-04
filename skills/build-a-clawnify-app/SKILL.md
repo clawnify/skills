@@ -420,6 +420,18 @@ integration apps, so get it right:
 - **Never fall back to raw `fetch`** against a provider API, and
   never invent endpoints or guess tokens.
 
+**The one exception — a service we don't support at all.** If a
+provider isn't in the connections registry (nothing to `connect()`
+to, and `clawnify connections list` doesn't show it), the sanctioned
+path *is* a raw call with a user-supplied key: declare the key(s) it
+needs in `clawnify.json` `env` (`required`/`optional`/`oneOf`), tell
+the user to set them in the dashboard, read them with
+`secret("THAT_KEY", env)`, and `fetch` the provider's documented
+endpoints directly. This is the escape hatch for the long tail of
+integrations we don't model yet — it does **not** apply to a service
+we *do* support (use `connect()` / `run()` for those, always). Keep
+the endpoint and token server-side, never in the client bundle.
+
 Build a `describe()`-driven setup state instead of assuming
 connections exist — show the user what's missing and where to
 connect it.
