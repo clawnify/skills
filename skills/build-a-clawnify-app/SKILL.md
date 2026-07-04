@@ -117,7 +117,8 @@ You never run `drizzle-kit` manually. The CLI runs it for you:
 - **`clawnify deploy`** — same generate step, then auto-includes
   `.clawnify/drizzle/*.sql` in the upload tar (remapped to
   `drizzle/<name>` for the deploy pipeline, which applies them
-  transactionally to D1 + Facet and records in `__clawnify_migrations`).
+  transactionally to the live and preview databases and records them
+  in `__clawnify_migrations`).
 
 The output dir (`.clawnify/drizzle/`) is gitignored. Migrations
 are derived artifacts, not source — never commit them, never edit
@@ -302,6 +303,25 @@ function NotesList() {
 The same tRPC procedures power the agent (via MCP) and the UI (via
 typed client). One backend, two front doors.
 
+## Design
+
+If the project contains a `DESIGN.md`, it is the single source of
+truth for visuals — follow its tokens, don't restyle around it.
+Either way, the rules every Clawnify app follows:
+
+- **Neutral chrome.** White canvas and surfaces, one text ramp
+  (foreground → muted → faint), hairline borders. Color is for
+  meaning, not decoration.
+- **One primary CTA per screen**, using the theme's `primary` token.
+  Blue is reserved for links and focus rings; never a second accent.
+- **Status colors are muted pairs** (`success` on `success-tint`,
+  etc.) — never pure-saturated fills.
+- **Dark mode comes from the theme tokens** — don't hand-pick dark
+  colors.
+- **Stick to shadcn/ui primitives** styled by the theme. Don't
+  install another component library or write a bespoke CSS system.
+- **Sizes in rem**, so browser zoom and font settings are respected.
+
 ## `clawnify.json` — the manifest
 
 ```json
@@ -318,7 +338,7 @@ typed client). One backend, two front doors.
     "storage": false
   },
   "env": {
-    "required": ["OPENROUTER_API_KEY"]
+    "optional": ["OPENROUTER_API_KEY"]
   },
   "api": {
     "public_routes": [
@@ -327,6 +347,16 @@ typed client). One backend, two front doors.
   }
 }
 ```
+
+If the app talks to third-party services the user has connected
+(ads platforms, CRMs, messaging), declare them too:
+
+```json
+{ "app": { "credentials": ["metaads", "googleads"] } }
+```
+
+`env` supports `required` (deploy warns if missing), `optional`
+(injected when available), and `oneOf` (at least one per group).
 
 Rules:
 - **Don't hand-edit `api.tools[]`** — generated at build from tRPC
@@ -339,6 +369,47 @@ Rules:
   `vite-preact` — those are legacy.
 - **`database: true`** if the app uses a DB. Schema is generated
   from `schema.ts` via drizzle-kit; no `schema.sql` to ship.
+
+## Connections & secrets — `@clawnify/connections`
+
+If the app needs a third-party service or a provider API key, use
+the `@clawnify/connections` SDK. Never read credential bindings
+directly, never paste API keys, never hardcode a token or endpoint.
+
+```ts
+import { connect, secret, describe, searchActions } from "@clawnify/connections";
+
+// A connected integration:
+const meta = connect("metaads", env);
+const accounts = await meta.adAccounts("name,currency");
+
+// A provider key the user supplied (null if absent):
+const key = secret("OPENROUTER_API_KEY", env);
+
+// What's wired vs missing — drive your setup/empty state from this:
+const status = await describe(env, undefined, REQUIRES);
+```
+
+How to call a connected service — the mistake that silently breaks
+integration apps, so get it right:
+
+- **Prefer the typed client's semantic methods** where they exist
+  (`meta.adAccounts(...)`, `googleads.query(gaql)`).
+- **For anything else, discover and run an action:**
+  ```ts
+  const [best] = await searchActions("list google ads campaigns", env);
+  const data = await connect(best.service, env).run(best.slug, body);
+  ```
+- Some integrations also expose a raw REST client
+  (`connect("bird", env).get("/path")`) — but if `.get()`/`.post()`
+  throws for a service, that service only supports semantic methods
+  and `run()`. When unsure, use `run()`.
+- **Never fall back to raw `fetch`** against a provider API, and
+  never invent endpoints or guess tokens.
+
+Build a `describe()`-driven setup state instead of assuming
+connections exist — show the user what's missing and where to
+connect it.
 
 ## Migrations
 
@@ -353,8 +424,8 @@ hood, applies the diff to local D1, and tracks what's been applied
 in `.clawnify/applied-migrations.json` so reruns are no-ops.
 
 On deploy, `clawnify deploy` does the same generate step, then the
-deploy pipeline applies the migrations transactionally to live D1
-and the Facet (preview tier). Tracked in `__clawnify_migrations`.
+deploy pipeline applies the migrations transactionally to the live
+and preview databases. Tracked in `__clawnify_migrations`.
 
 For destructive changes (drop column, rename), Drizzle's generator
 emits the SQL; the agent should default to additive changes and
@@ -377,6 +448,8 @@ switch queries, drop old column" over a single-step rename.
   leak is the worst-class bug we can ship.
 - Read auth from `Authorization` / cookies / `Bearer` tokens. Use
   the `X-Clawnify-*` headers via `auth.ts`.
+- Call third-party APIs with raw `fetch` or hardcoded tokens. Go
+  through `@clawnify/connections` (`connect` / `secret` / `run`).
 - Install `drizzle-orm` as a separate top-level dependency.
   `@clawnify/db@^0.4.0` pulls it in transitively; only add it if
   you need to pin a specific version (rare).
@@ -390,7 +463,7 @@ switch queries, drop old column" over a single-step rename.
 - Add `.meta({ mcp: { name, description } })` to every state-
   mutating procedure that the user's agent might want to call.
 - Test on the draft URL (`<slug>.draft.clawnify.com`) before
-  publishing — the Facet preview tier catches schema drift and
+  publishing — the preview tier catches schema drift and
   type errors at build time.
 - When unsure about a Drizzle pattern, check the `@clawnify/db`
   README for the current API + version notes.
