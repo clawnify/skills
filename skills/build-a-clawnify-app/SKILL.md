@@ -417,6 +417,11 @@ integration apps, so get it right:
   (`connect("bird", env).get("/path")`) — but if `.get()`/`.post()`
   throws for a service, that service only supports semantic methods
   and `run()`. When unsure, use `run()`.
+- **Need exact paths/arguments for a raw-REST provider?** Some carry
+  a `spec_url` (the provider's published OpenAPI spec) —
+  `clawnify connections list --json` shows it. Download and query it —
+  `curl -s <spec_url> -o spec.json && jq '.paths | keys' spec.json` —
+  never read a whole spec into context (they run to 10+ MB).
 - **Never fall back to raw `fetch`** against a provider API, and
   never invent endpoints or guess tokens.
 
