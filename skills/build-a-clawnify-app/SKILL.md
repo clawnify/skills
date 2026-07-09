@@ -1,6 +1,6 @@
 ---
 name: build-a-clawnify-app
-description: Author a Clawnify app end-to-end — the canonical Hono + React + Vite + tRPC + @clawnify/db (Drizzle) stack, schema.ts as the single source of truth, MCP-tagged tRPC procedures, and X-Clawnify-* identity headers. Use when building or modifying an app that deploys to the Clawnify platform.
+description: Author a Clawnify app end-to-end — the canonical Hono + React + Vite + @hono/zod-openapi + @clawnify/db (Drizzle) stack, schema.ts as the single source of truth, OpenAPIHono routes (createRoute) that auto-generate an OpenAPI spec, and X-Clawnify-* identity headers. Use when building or modifying an app that deploys to the Clawnify platform.
 ---
 
 # Build a Clawnify app
@@ -11,27 +11,33 @@ instructions during an app build.
 
 If you're an agent: this document is enough context to produce a
 working app from scratch. Follow it literally. The patterns here
-are the patterns the platform expects.
+are exactly what `clawnify init` scaffolds and what the platform
+expects.
 
 ## TL;DR
 
-- **One stack.** Hono + React + Vite + tRPC + `@clawnify/db` (Drizzle)
-  + Tailwind + shadcn/ui. Nothing else.
+- **One stack.** Hono + React + Vite + `@hono/zod-openapi` +
+  `@clawnify/db` (Drizzle) + Tailwind v4. Nothing else.
 - **Schema lives in `schema.ts`** (Drizzle DSL) — single source of
   truth. Never write SQL DDL by hand.
 - **Queries through `getDB`** — `import { getDB, eq } from
   "@clawnify/db"`. JSON columns auto-serialize.
+- **API routes are `OpenAPIHono` + `createRoute`** — Zod-validated
+  request/response. `app.doc()` auto-generates the OpenAPI spec at
+  `/api/openapi.json`. That spec *is* the tool surface.
 - **`clawnify.json`** declares framework, env, and public routes.
-  Build emits `api.tools[]` from tRPC procedure meta.
-- **No `/mcp` endpoint.** The org's MCP gateway projects tools
-  from the manifest.
+  There is no `api.tools[]` — the agent discovers and calls your
+  endpoints by reading the live OpenAPI spec.
 - **Identity flows via `X-Clawnify-*` headers** injected by the
   platform. Read them, don't fake them.
 
 ## Stack rationale
 
 One template, one set of decisions. Don't deviate unless the user has
-explicitly asked.
+explicitly asked. `clawnify init` (type `app`) scaffolds either a
+`blank` template (one GET route + a page) or a `crud` template (a
+table with list/create/update/delete + a form). Both share the exact
+same stack below.
 
 ## File layout
 
@@ -40,11 +46,10 @@ my-app/
   clawnify.json              ← Manifest (validated against /schema/v1/clawnify.json)
   package.json
   tsconfig.json
-  vite.config.ts
-  tailwind.config.ts
-  components.json            ← shadcn/ui config
+  vite.config.ts             ← @vitejs/plugin-react + @tailwindcss/vite; proxies /api → :8787
   index.html
   drizzle.config.ts          ← Points at src/server/schema.ts → outputs to .clawnify/drizzle
+  .gitignore
   .clawnify/                 ← CLI cache (gitignored)
     drizzle/                 ← drizzle-kit generate output — never hand-edit
       0000_<name>.sql
@@ -53,24 +58,37 @@ my-app/
     wrangler.toml            ← Generated per-dev wrangler config
   src/
     server/
-      index.ts               ← Hono entry — mounts the tRPC router
+      index.ts               ← OpenAPIHono entry — mounts routes, serves /api/openapi.json
+      routes.ts              ← OpenAPIHono + createRoute definitions — the API surface
       schema.ts              ← Drizzle table definitions — THE schema
-      router.ts              ← tRPC router with MCP-tagged procedures
-      auth.ts                ← Read X-Clawnify-* identity headers
-      env.d.ts               ← Worker bindings types
+      worker-env.d.ts        ← Cloudflare Workers types reference
+      uploads.ts             ← R2 helpers (only when storage is enabled)
     client/
       main.tsx               ← React mount point
-      app.tsx                ← Root component
-      lib/
-        trpc.ts              ← Typed tRPC client
-      components/            ← shadcn/ui + your components
-      styles.css
+      app.tsx                ← Root component (plain fetch against /api/*)
+      index.css              ← @import "tailwindcss"
 ```
 
 ## `schema.ts` — the only place tables exist
 
+The scaffold's starter table (blank template):
+
 ```ts
 // src/server/schema.ts
+import { sqliteTable, text, integer } from "@clawnify/db";
+
+export const items = sqliteTable("items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  createdAt: text("created_at").notNull().$default(() => new Date().toISOString()),
+});
+```
+
+Real apps are multi-tenant. Every user-facing table carries an
+`org_id`, every query filters by it. JSON columns and indexes use the
+Drizzle DSL re-exported from `@clawnify/db`:
+
+```ts
 import { sqliteTable, text, integer, index } from "@clawnify/db";
 
 export const notes = sqliteTable(
@@ -124,202 +142,351 @@ The output dir (`.clawnify/drizzle/`) is gitignored. Migrations
 are derived artifacts, not source — never commit them, never edit
 them. The single source of truth is `schema.ts`.
 
-## `src/server/index.ts` — Hono entry
+## `src/server/index.ts` — the OpenAPIHono entry
 
 ```ts
-import { Hono } from "hono";
-import { trpcServer } from "@hono/trpc-server";
-import { appRouter } from "./router";
-import { createContext } from "./auth";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import api from "./routes";
 
-const app = new Hono<{ Bindings: Env }>();
+type Env = { Bindings: { DB: D1Database } };
 
-app.use("/trpc/*", trpcServer({
-  router: appRouter,
-  createContext: (opts, c) => createContext(opts, c.env, c.req.raw),
-}));
+const app = new OpenAPIHono<Env>();
 
-// SPA fallback — Vite-built static assets served by the platform
-app.notFound((c) => c.env.ASSETS.fetch(c.req.raw));
+app.route("/", api);
+
+app.doc("/api/openapi.json", {
+  openapi: "3.0.0",
+  info: { title: "My app", version: "1.0.0" },
+});
 
 export default app;
 ```
 
-That's it. The Worker entry is thin. No MCP mounting, no inline
-route handlers — tRPC owns the API surface.
+The entry is thin: mount the routes, then `app.doc()` — that single
+call generates a live OpenAPI 3.0 spec from your `createRoute`
+definitions and serves it at `/api/openapi.json`. You never write a
+`/openapi.json` handler by hand; the framework derives it.
 
-## `src/server/auth.ts` — identity from headers
+When storage (file uploads) is enabled, the entry also wires the R2
+bucket in a middleware before mounting routes:
 
 ```ts
-import type { Context } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { initUploads } from "./uploads";
+import api from "./routes";
 
-export interface User {
-  id: string;
-  orgId: string;
-  email: string;
-  caller: "user" | "agent" | "agent-browser" | "system";
-}
+type Env = { Bindings: { DB: D1Database; UPLOADS: R2Bucket } };
 
-export function readUser(req: Request): User | null {
-  const id = req.headers.get("X-Clawnify-User-Id");
-  const orgId = req.headers.get("X-Clawnify-Org-Id");
-  const email = req.headers.get("X-Clawnify-User-Email") ?? "";
-  const caller = (req.headers.get("X-Clawnify-Caller") ?? "user") as User["caller"];
-  if (!id || !orgId) return null;
-  return { id, orgId, email, caller };
-}
+const app = new OpenAPIHono<Env>();
 
-export function createContext(_opts: unknown, env: Env, req: Request) {
-  const user = readUser(req);
-  return { env, user };
-}
+app.use("*", async (c, next) => {
+  initUploads(c.env.UPLOADS);
+  await next();
+});
+
+app.route("/", api);
+
+app.doc("/api/openapi.json", {
+  openapi: "3.0.0",
+  info: { title: "My app", version: "1.0.0" },
+});
+
+export default app;
 ```
 
-Trust these headers — the platform strips client-supplied versions
-and reinjects authenticated ones at the perimeter. Never read
-`Authorization` or session cookies directly.
+## `src/server/routes.ts` — OpenAPIHono routes with `createRoute`
 
-## `src/server/router.ts` — tRPC procedures with MCP meta
+Each endpoint is a `createRoute({ method, path, summary, request, responses })`
+definition paired with a handler via `api.openapi(route, handler)`.
+Request bodies and params are Zod-validated (`c.req.valid("json")`,
+`c.req.valid("param")`); response shapes are declared with
+`.openapi("Name")` Zod schemas so they land in the generated spec.
+
+Blank template — one read route:
 
 ```ts
-import { initTRPC } from "@trpc/server";
-import { z } from "zod";
-import { getDB, eq, desc, and } from "@clawnify/db";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { getDB, desc } from "@clawnify/db";
 import * as schema from "./schema";
-import type { User } from "./auth";
 
-const t = initTRPC.context<{ env: Env; user: User | null }>().create();
+type Env = { Bindings: { DB: D1Database } };
+const api = new OpenAPIHono<Env>();
 
-const authed = t.procedure.use(({ ctx, next }) => {
-  if (!ctx.user) throw new Error("UNAUTHORIZED");
-  return next({ ctx: { ...ctx, user: ctx.user } });
-});
+const ItemSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  createdAt: z.string(),
+}).openapi("Item");
 
-export const appRouter = t.router({
-  list_notes: authed
-    .meta({ mcp: { name: "list_notes", description: "List the user's notes." } })
-    .input(z.object({ limit: z.number().int().min(1).max(100).default(50) }))
-    .output(z.array(z.object({
-      id: z.number(),
-      title: z.string(),
-      body: z.string(),
-      tags: z.array(z.string()),
-      createdAt: z.string(),
-    })))
-    .query(async ({ ctx, input }) => {
-      const db = getDB(ctx.env, { schema });
-      return db
-        .select()
-        .from(schema.notes)
-        .where(eq(schema.notes.orgId, ctx.user.orgId))
-        .orderBy(desc(schema.notes.createdAt))
-        .limit(input.limit);
-    }),
+api.openapi(
+  createRoute({
+    method: "get",
+    path: "/api/items",
+    summary: "List items",
+    responses: {
+      200: {
+        description: "List of items",
+        content: { "application/json": { schema: z.array(ItemSchema) } },
+      },
+    },
+  }),
+  async (c) => {
+    const db = getDB(c.env, { schema });
+    const items = await db
+      .select()
+      .from(schema.items)
+      .orderBy(desc(schema.items.createdAt));
+    return c.json(items);
+  },
+);
 
-  create_note: authed
-    .meta({ mcp: { name: "create_note", description: "Create a new note." } })
-    .input(z.object({
-      title: z.string().min(1),
-      body: z.string().default(""),
-      tags: z.array(z.string()).default([]),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      const db = getDB(ctx.env, { schema });
-      const [row] = await db
-        .insert(schema.notes)
-        .values({ ...input, orgId: ctx.user.orgId })
-        .returning();
-      return row;
-    }),
-});
+export default api;
+```
 
-export type AppRouter = typeof appRouter;
+CRUD template — the full list/create/update/delete surface:
+
+```ts
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { getDB, eq, desc } from "@clawnify/db";
+import * as schema from "./schema";
+
+type Env = { Bindings: { DB: D1Database } };
+const api = new OpenAPIHono<Env>();
+
+const ItemSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  status: z.string(),
+  createdAt: z.string(),
+}).openapi("Item");
+
+const CreateItemSchema = z.object({ title: z.string().min(1) }).openapi("CreateItem");
+const UpdateItemSchema = z.object({
+  title: z.string().min(1).optional(),
+  status: z.string().optional(),
+}).openapi("UpdateItem");
+const IdParamSchema = z.object({ id: z.string() });
+const OkSchema = z.object({ ok: z.boolean() }).openapi("Ok");
+
+api.openapi(
+  createRoute({
+    method: "get",
+    path: "/api/items",
+    summary: "List items",
+    responses: {
+      200: {
+        description: "List of items",
+        content: { "application/json": { schema: z.array(ItemSchema) } },
+      },
+    },
+  }),
+  async (c) => {
+    const db = getDB(c.env, { schema });
+    const items = await db
+      .select()
+      .from(schema.items)
+      .orderBy(desc(schema.items.createdAt));
+    return c.json(items);
+  },
+);
+
+api.openapi(
+  createRoute({
+    method: "post",
+    path: "/api/items",
+    summary: "Create item",
+    request: { body: { content: { "application/json": { schema: CreateItemSchema } } } },
+    responses: {
+      201: {
+        description: "Created item",
+        content: { "application/json": { schema: ItemSchema } },
+      },
+    },
+  }),
+  async (c) => {
+    const { title } = c.req.valid("json");
+    const db = getDB(c.env, { schema });
+    const [row] = await db
+      .insert(schema.items)
+      .values({ title: title.trim() })
+      .returning();
+    return c.json(row, 201);
+  },
+);
+
+api.openapi(
+  createRoute({
+    method: "patch",
+    path: "/api/items/:id",
+    summary: "Update item",
+    request: {
+      params: IdParamSchema,
+      body: { content: { "application/json": { schema: UpdateItemSchema } } },
+    },
+    responses: {
+      200: { description: "Updated", content: { "application/json": { schema: OkSchema } } },
+    },
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param");
+    const body = c.req.valid("json");
+    const patch: Partial<typeof schema.items.$inferInsert> = {};
+    if (body.title !== undefined) patch.title = body.title;
+    if (body.status !== undefined) patch.status = body.status;
+    if (Object.keys(patch).length === 0) return c.json({ ok: false }, 400);
+    const db = getDB(c.env, { schema });
+    await db.update(schema.items).set(patch).where(eq(schema.items.id, Number(id)));
+    return c.json({ ok: true });
+  },
+);
+
+api.openapi(
+  createRoute({
+    method: "delete",
+    path: "/api/items/:id",
+    summary: "Delete item",
+    request: { params: IdParamSchema },
+    responses: {
+      200: { description: "Deleted", content: { "application/json": { schema: OkSchema } } },
+    },
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param");
+    const db = getDB(c.env, { schema });
+    await db.delete(schema.items).where(eq(schema.items.id, Number(id)));
+    return c.json({ ok: true });
+  },
+);
+
+export default api;
 ```
 
 Patterns to follow:
-- **Every state-mutating procedure** that an agent might want to
-  call gets `.meta({ mcp: { name, description } })`. The build
-  picks these up into `clawnify.json api.tools[]`. The Clawnify
-  MCP gateway projects them as MCP tools.
-- **Auth via middleware** (`authed`). Never check headers inside
-  a procedure body.
-- **Filter by `ctx.user.orgId`** on every query. No exceptions.
-- **Schema-validated input + output** with Zod. The output schema
-  is what the agent sees as the tool's return shape.
-- **Procedure names are intent verbs** (`archive_old_notes`,
-  `publish_post`), not REST resource shapes (`get_notes`,
-  `update_note`). Tools describe what the agent wants to do.
+- **Give every route a clear `summary`/`description`.** The generated
+  OpenAPI spec is what the agent reads to decide which endpoint to
+  call — a vague summary makes your endpoint invisible in practice.
+- **Validate input with Zod** via `request.body` / `request.params`
+  and read it with `c.req.valid("json")` / `c.req.valid("param")`.
+  Never parse `c.req.raw` by hand.
+- **Declare response shapes** with `.openapi("Name")` schemas — they
+  become the documented return type in the spec.
+- **Filter by the org** on every user-facing query (see identity
+  headers below). No exceptions.
 
-## `src/client` — React + tRPC + shadcn
+## `src/server` — reading identity headers
+
+The scaffold's starter routes are single-tenant for brevity. Real
+apps read the caller's identity from the `X-Clawnify-*` headers the
+platform injects, using Hono's `c.req.header(...)` inside the handler:
+
+```ts
+const orgId = c.req.header("X-Clawnify-Org-Id");
+if (!orgId) return c.json({ error: "unauthorized" }, 401);
+const db = getDB(c.env, { schema });
+const rows = await db
+  .select()
+  .from(schema.notes)
+  .where(eq(schema.notes.orgId, orgId));
+```
+
+The headers the platform injects (never set by the client — it strips
+client-supplied versions and reinjects authenticated ones at the
+perimeter):
+
+| Header | Value |
+|--------|-------|
+| `X-Clawnify-User-Id` | Supabase user UUID |
+| `X-Clawnify-Org-Id` | Organization UUID |
+| `X-Clawnify-User-Email` | User email |
+| `X-Clawnify-Caller` | `user`, `agent`, `agent-browser`, or `system` |
+
+Trust these headers. Never read `Authorization`, `Bearer` tokens, or
+session cookies directly.
+
+## `src/client` — React + plain fetch
+
+The client mounts React and talks to the API with plain `fetch`
+against the `/api/*` routes. No data-layer library is scaffolded.
 
 ```tsx
-// src/client/lib/trpc.ts
-import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
-import type { AppRouter } from "../../server/router";
+// src/client/main.tsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./app";
+import "./index.css";
 
-export const trpc = createTRPCReact<AppRouter>();
-export const trpcClient = trpc.createClient({
-  links: [httpBatchLink({ url: "/trpc" })],
-});
+createRoot(document.getElementById("app")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
 ```
 
 ```tsx
-// src/client/app.tsx
-import { useState } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { trpc, trpcClient } from "./lib/trpc";
-import { Button } from "./components/ui/button";
+// src/client/app.tsx (CRUD template shape)
+import { useState, useEffect } from "react";
 
-const queryClient = new QueryClient();
-
-export function App() {
-  return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <NotesList />
-      </QueryClientProvider>
-    </trpc.Provider>
-  );
+interface Item {
+  id: number;
+  title: string;
+  status: string;
+  createdAt: string;
 }
 
-function NotesList() {
-  const notes = trpc.list_notes.useQuery({ limit: 50 });
-  const create = trpc.create_note.useMutation({
-    onSuccess: () => notes.refetch(),
-  });
+export function App() {
+  const [items, setItems] = useState<Item[]>([]);
   const [title, setTitle] = useState("");
 
+  async function load() {
+    const res = await fetch("/api/items");
+    setItems(await res.json());
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function addItem(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    await fetch("/api/items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    setTitle("");
+    load();
+  }
+
+  // ...toggleStatus / deleteItem call PATCH/DELETE the same way.
+
   return (
-    <div>
-      {notes.data?.map((n) => <div key={n.id}>{n.title}</div>)}
-      <Button onClick={() => create.mutate({ title, body: "" })}>
-        Add note
-      </Button>
+    <div className="max-w-xl mx-auto mt-10 px-4">
+      {/* form + list */}
     </div>
   );
 }
 ```
 
-The same tRPC procedures power the agent (via MCP) and the UI (via
-typed client). One backend, two front doors.
+In local dev, Vite proxies `/api` to the Worker on `:8787` (see
+`vite.config.ts`), so the same relative fetch paths work in dev and
+in production. The API is the one contract: the UI calls it over
+`fetch`, and the agent calls it over the OpenAPI spec.
 
 ## Design
 
 If the project contains a `DESIGN.md`, it is the single source of
-truth for visuals — follow its tokens, don't restyle around it.
-Either way, the rules every Clawnify app follows:
+truth for visuals — follow its tokens, don't restyle around it. The
+scaffold ships Tailwind v4 (via `@tailwindcss/vite`, imported with
+`@import "tailwindcss";` in `index.css`) and nothing else — no
+component library. The rules every Clawnify app follows:
 
 - **Neutral chrome.** White canvas and surfaces, one text ramp
   (foreground → muted → faint), hairline borders. Color is for
   meaning, not decoration.
-- **One primary CTA per screen**, using the theme's `primary` token.
-  Blue is reserved for links and focus rings; never a second accent.
-- **Status colors are muted pairs** (`success` on `success-tint`,
-  etc.) — never pure-saturated fills.
-- **Dark mode comes from the theme tokens** — don't hand-pick dark
-  colors.
-- **Stick to shadcn/ui primitives** styled by the theme. Don't
-  install another component library or write a bespoke CSS system.
+- **One primary CTA per screen.** Blue is reserved for links and
+  focus rings; never a second accent.
+- **Status colors are muted pairs** — never pure-saturated fills.
+- **Style with Tailwind utilities.** Don't install another component
+  library or write a bespoke CSS system unless the user asks.
 - **Sizes in rem**, so browser zoom and font settings are respected.
 
 ## `clawnify.json` — the manifest
@@ -330,8 +497,6 @@ Either way, the rules every Clawnify app follows:
   "version": 1,
   "name": "Notes",
   "description": "Take and organize notes. Searchable by tag.",
-  "icon": "icon.svg",
-  "tags": ["productivity"],
   "app": {
     "framework": "react+hono",
     "database": true,
@@ -348,8 +513,12 @@ Either way, the rules every Clawnify app follows:
 }
 ```
 
+`clawnify init` writes the minimal form:
+`{ app: { framework: "react+hono", database: true, storage } }`. Add
+the rest as needed.
+
 If the app talks to third-party services the user has connected
-(ads platforms, CRMs, messaging), declare them too:
+(ads platforms, CRMs, messaging), declare them:
 
 ```json
 { "app": { "credentials": ["metaads", "googleads"] } }
@@ -362,16 +531,35 @@ naming rule below.
 (injected when available), and `oneOf` (at least one per group).
 
 Rules:
-- **Don't hand-edit `api.tools[]`** — generated at build from tRPC
-  `.meta({ mcp: { ... } })` annotations.
-- **Public routes are the exception**, not the default. Every tRPC
-  procedure is private (auth-required) unless you explicitly add a
-  matching path to `public_routes`. Use only for webhooks, RSS,
-  embedded feeds.
+- **There is no `api.tools[]`.** The manifest's `api` object only
+  accepts `public_routes` and `automation_bypass`. Your API surface
+  is discovered from the generated OpenAPI spec, not a hand-authored
+  tools list (see the next section).
+- **Public routes are the exception**, not the default. Every route
+  is behind the Clawnify perimeter (auth-required) unless you
+  explicitly add a matching path to `api.public_routes`. Use only for
+  webhooks, RSS, embedded feeds.
 - **`framework: "react+hono"`** for new apps. Never `preact+hono` or
   `vite-preact` — those are legacy.
-- **`database: true`** if the app uses a DB. Schema is generated
-  from `schema.ts` via drizzle-kit; no `schema.sql` to ship.
+- **`database: true`** if the app uses a DB. Schema is generated from
+  `schema.ts` via drizzle-kit; no `schema.sql` to ship.
+
+## How the agent reaches your API (no `api.tools[]`)
+
+The old tRPC stack emitted an `api.tools[]` array from procedure meta.
+That mechanism is gone. Today the flow is:
+
+1. Your `createRoute` definitions + `app.doc("/api/openapi.json", …)`
+   auto-generate a live OpenAPI 3.0 spec.
+2. The user's agent calls the platform's built-in tools —
+   `get_app_openapi` (fetch the app's OpenAPI JSON) and `call_app_api`
+   (invoke a `method` + `path` on the live app) — to discover and
+   drive your endpoints. No per-app MCP registration, no manifest
+   tools array.
+
+So you make an endpoint "agent-callable" simply by shipping it with a
+clear `summary`/`description` and Zod-typed request/response. The
+richer and clearer the spec, the more reliably the agent uses it.
 
 ## Connections & secrets — `@clawnify/connections`
 
@@ -441,60 +629,134 @@ Build a `describe()`-driven setup state instead of assuming
 connections exist — show the user what's missing and where to
 connect it.
 
+## Scheduling & deferred work — the managed queue
+
+A deployed app **cannot bind Cloudflare Queues, Durable Objects, or cron
+triggers** (the platform builds every app with a fixed binding set: `DB` +
+`ASSETS` + `UPLOADS`). To run work later — a scheduled publish, a reminder, a
+retry, a "do this in 10 minutes" — use the **Clawnify managed queue service**
+over HTTP. It owns the clock, retries, and at-least-once delivery, then calls an
+endpoint on *your own app* back at the scheduled time.
+
+It's a thin seam over a platform primitive, same shape as `@clawnify/db` /
+`@clawnify/connections` (a `@clawnify/queue` package is coming; inline the seam
+until then). Auth is the build-injected `env.CLAWNIFY_TOKEN`; with no token
+(local dev) the seam degrades to a no-op.
+
+**Enqueue** a deferred call to your own endpoint:
+
+```ts
+// POST https://services.clawnify.com/queue/enqueue  (Bearer CLAWNIFY_TOKEN)
+const res = await fetch("https://services.clawnify.com/queue/enqueue", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${env.CLAWNIFY_TOKEN}`, "Content-Type": "application/json" },
+  body: JSON.stringify({
+    target_url: `${origin}/api/internal/publish`, // an endpoint on THIS app
+    payload: { post_id: id },                     // echoed back to you on fire
+    run_at: new Date(whenMs).toISOString(),
+    idempotency_key: `post:${id}:${whenMs}`,       // same key dedupes; new time = new job
+  }),
+});
+const { job_id } = await res.json();  // store it to cancel/reschedule
+```
+
+Persist `job_id` on the row (e.g. `posts.queue_job_id`). **Cancel / reschedule**:
+`DELETE https://services.clawnify.com/queue/jobs/{job_id}` (Bearer token);
+reschedule = cancel + a fresh enqueue.
+
+**The callback endpoint is a public, signature-verified route.** The queue calls
+`target_url` from outside the perimeter, so the endpoint must be declared in
+`clawnify.json` `public_routes` **and** verify the delivery signature itself —
+the signature *is* its auth (never trust an unsigned call):
+
+```jsonc
+// clawnify.json
+"api": { "public_routes": [ { "path": "/api/internal/publish", "methods": ["POST"] } ] }
+```
+
+Deliveries are signed with the platform's **ECDSA P-256 (ES256)** key,
+Stripe-style over `${timestamp}.${rawBody}`, verified against
+`https://services.clawnify.com/.well-known/jwks.json` (public key — nothing
+breaks on token rotation). Read the raw body, check the signature + a timestamp
+tolerance (~5 min) before doing anything:
+
+```ts
+app.post("/api/internal/publish", async (c) => {
+  const raw = await c.req.text();
+  const ok = await verifyDelivery(raw, {
+    signature: c.req.header("x-clawnify-signature"),
+    timestamp: c.req.header("x-clawnify-timestamp"),
+    keyId: c.req.header("x-clawnify-key-id"),
+  });
+  if (!ok) return c.json({ error: "bad signature" }, 401);
+  const { post_id } = JSON.parse(raw);
+  // …do the deferred work (short: it's one normal Worker invocation)…
+  return c.json({ ok: true });
+});
+```
+
+Each fire is a normal Worker request — size the work to one invocation (publish a
+post, send a digest). For long compute *now* (not deferred), hold the request
+open and return when done; don't fire-and-forget past the response.
+
 ## Migrations
 
 You don't write migration SQL by hand. You don't even run a CLI
 command. The workflow is:
 
 1. Edit `src/server/schema.ts` to reflect the new shape.
-2. Restart `pnpm dev` (or it auto-restarts on save in some configs).
+2. Run `clawnify dev` (or `clawnify deploy`).
 
-That's it. `clawnify dev` runs `drizzle-kit generate` under the
-hood, applies the diff to local D1, and tracks what's been applied
-in `.clawnify/applied-migrations.json` so reruns are no-ops.
+That's it. `clawnify dev` runs `drizzle-kit generate` under the hood,
+applies any new `.clawnify/drizzle/*.sql` to local D1 via
+`wrangler d1 execute --local`, and tracks what's been applied in
+`.clawnify/applied-migrations.json` so reruns are no-ops.
 
-On deploy, `clawnify deploy` does the same generate step, then the
-deploy pipeline applies the migrations transactionally to the live
-and preview databases. Tracked in `__clawnify_migrations`.
+On deploy, `clawnify deploy` does the same generate step, then bundles
+`.clawnify/drizzle/*.sql` into the upload tar (remapped to
+`drizzle/<name>`); the deploy pipeline applies them transactionally to
+the live and preview databases and records them in
+`__clawnify_migrations`.
 
 For destructive changes (drop column, rename), Drizzle's generator
-emits the SQL; the agent should default to additive changes and
-only do destructive ones when the user explicitly asks. Renames
-are risky on production data — prefer "add new column, backfill,
-switch queries, drop old column" over a single-step rename.
+emits the SQL; default to additive changes and only do destructive
+ones when the user explicitly asks. Renames are risky on production
+data — prefer "add new column, backfill, switch queries, drop old
+column" over a single-step rename.
 
 ## What the agent must NOT do
 
-- Mount `/mcp` manually. The gateway projects tools from the
-  manifest.
+- Author a `/openapi.json` handler by hand. `app.doc("/api/openapi.json", …)`
+  generates it from your `createRoute` definitions.
 - Author `schema.sql` by hand. Use `schema.ts`.
 - Author migration SQL by hand. The CLI runs `drizzle-kit generate`
   on dev + deploy. Never commit `drizzle/` or `.clawnify/drizzle/`.
+- Invent an `api.tools[]` array in the manifest. It isn't a valid
+  field — the OpenAPI spec is the tool surface.
 - Use `JSON.stringify` on query params. JSON columns auto-serialize
-  via Drizzle. The raw API has `json()` as a helper.
-- Bind tRPC procedures by REST resource shape (`get_user_by_id`).
-  Use intent verbs (`onboard_user`, `archive_old_orders`).
+  via Drizzle. The raw SQL API has `json()` as a helper.
 - Skip the `org_id` filter on a user-facing query. Multi-tenant
   leak is the worst-class bug we can ship.
 - Read auth from `Authorization` / cookies / `Bearer` tokens. Use
-  the `X-Clawnify-*` headers via `auth.ts`.
+  the `X-Clawnify-*` headers via `c.req.header(...)`.
 - Call third-party APIs with raw `fetch` or hardcoded tokens. Go
   through `@clawnify/connections` (`connect` / `secret` / `run`).
 - Install `drizzle-orm` as a separate top-level dependency.
-  `@clawnify/db@^0.4.0` pulls it in transitively; only add it if
-  you need to pin a specific version (rare).
+  `@clawnify/db@^0.4.1` pulls it in transitively; only add it if you
+  need to pin a specific version (rare).
 
 ## What the agent SHOULD do
 
 - Import everything from `@clawnify/db` where possible
-  (`getDB`, `eq`, `and`, `sql`, `sqliteTable`, `text`, `integer`,
-  etc. are all re-exported there). Drop to `drizzle-orm` directly
-  only for things not re-exported.
-- Add `.meta({ mcp: { name, description } })` to every state-
-  mutating procedure that the user's agent might want to call.
+  (`getDB`, `eq`, `and`, `desc`, `sql`, `sqliteTable`, `text`,
+  `integer`, `index`, etc. are all re-exported there). Drop to
+  `drizzle-orm` directly only for things not re-exported.
+- Give every route a clear `summary`/`description` and Zod-typed
+  request/response so the agent can discover and call it via the
+  OpenAPI spec.
 - Test on the draft URL (`<slug>.draft.clawnify.com`) before
-  publishing — the preview tier catches schema drift and
-  type errors at build time.
+  publishing — the preview tier catches schema drift and type errors
+  at build time.
 - When unsure about a Drizzle pattern, check the `@clawnify/db`
   README for the current API + version notes.
 
