@@ -40,6 +40,11 @@ machine, sign-in completes automatically; otherwise the page shows a
 code to paste back at the `Paste code here if prompted >` prompt
 (useful over SSH — no port forwarding needed).
 
+**Headless / CI / agents — skip `login` entirely.** Set `CLAWNIFY_TOKEN` (a
+Supabase access token) and it wins over any stored session, reading/writing no
+files; `CLAWNIFY_ORG_ID` (or a per-command `--org`) pins the org. This is how a
+coding agent runs the CLI without a browser.
+
 ### Organizations
 
 You belong to one or more orgs; apps live inside an org.
@@ -107,10 +112,37 @@ clawnify docs [slug]       # usage README for an app (org index if omitted)
 `pull schema` refuses to clobber local uncommitted changes unless you
 pass `--force`.
 
+## Manage agents (the FDE surface)
+
+Drive an org's AI agents from the terminal — observe them and fix them. See the
+`fix-a-clawnify-agent` skill for the workflow; this is the command list. All
+org-scoped and **repo-independent** (reads session data + the box, never a
+GitHub repo). Add `--server <id>` when the org has more than one server.
+
+```bash
+clawnify servers list                       # the org's servers (an org can have several)
+clawnify agents list                        # agents on a server (main + specialists)
+clawnify agents skills [agent]              # what an agent can ACTUALLY run (not just its workspace)
+clawnify sessions --agent <slug> --json     # stored sessions + token counters (contextTokens = bloat)
+clawnify sessions history <key> --json      # one session's transcript — where it veered
+clawnify agents pull [dir] --agent <slug>   # fetch AGENTS.md + skills/ + flows/ to edit
+clawnify agents push [dir]                  # push edits back (additive; next session, no restart)
+clawnify agents grant-skill <s> --to <a>    # share a main-authored skill (or --all for every agent)
+clawnify agents create <slug> --yes         # new specialist (RESTARTS the gateway)
+clawnify env set <KEY> <VALUE>              # org custom env — NON-SECRET only (restarts gateway)
+clawnify connections connect <id>           # how to connect an integration (dashboard OAuth; you can't)
+```
+
+**Boundary:** everything above is autonomous *except* the human-auth actions —
+connecting an integration (OAuth) and handing over a secret/API key. For those,
+explain the dashboard steps; never fake them. `agents create` / `env set`
+restart the gateway, so confirm before running them on a busy box.
+
 ## Connections & env names
 
 ```bash
-clawnify connections list   # the org's naming catalog
+clawnify connections list          # the org's naming catalog (● connected / ○ not)
+clawnify connections connect <id>  # how to connect one — dashboard OAuth; the CLI/agent can't do it for you
 ```
 
 Lists the active org's integrations (canonical ids + connected state),
@@ -142,6 +174,18 @@ Code, Cursor, OpenClaw, Codex, Aider) and writes the always-on rules
 block, installs bundled skills, and adds the Clawnify MCP server to
 `.mcp.json`. Target one agent with `--agent <name>`; undo with
 `clawnify ai-files uninstall`.
+
+## The raw escape hatch
+
+```bash
+clawnify api /servers                               # any GET
+clawnify api /servers/<id>/agents -X POST -d '{…}'  # any method + JSON body
+```
+
+`clawnify api <path>` makes an authenticated request to any Clawnify API path —
+same auth and org scoping as every other command (it can only do what you can).
+Use it for anything the porcelain doesn't wrap; the curated commands stay small
+because this is always there.
 
 ## Tips
 
