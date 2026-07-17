@@ -554,16 +554,22 @@ The old tRPC stack emitted an `api.tools[]` array from procedure meta.
 That mechanism is gone. Today the flow is:
 
 1. Your `createRoute` definitions + `app.doc("/api/openapi.json", …)`
-   auto-generate a live OpenAPI 3.0 spec.
-2. The user's agent calls the platform's built-in tools —
-   `get_app_openapi` (fetch the app's OpenAPI JSON) and `call_app_api`
-   (invoke a `method` + `path` on the live app) — to discover and
-   drive your endpoints. No per-app MCP registration, no manifest
-   tools array.
+   auto-generate a live OpenAPI 3.0 spec. The platform still reads this
+   internally (e.g. `update_app` triage decides whether an existing
+   endpoint can serve a request instead of a rebuild), so keep it
+   accurate — but it is **not** the agent's discovery channel.
+2. The agent discovers your endpoints from the app's **`agent.md`**
+   (extracted into `agent_instructions`, returned by `get_app`) and, for
+   the exact routes, `get_app_source`. It then drives them with the
+   built-in `call_app_api` tool (invoke a `method` + `path` on the live
+   app). No per-app MCP registration, no manifest tools array, and no
+   raw-OpenAPI tool — a generated spec is only as complete as its
+   annotations, so `agent.md` is the authored contract of record.
 
-So you make an endpoint "agent-callable" simply by shipping it with a
+So you make an endpoint "agent-callable" by describing it in `agent.md`
+(what it does, method + path, when to use it) and shipping it with a
 clear `summary`/`description` and Zod-typed request/response. The
-richer and clearer the spec, the more reliably the agent uses it.
+clearer both are, the more reliably the agent uses it.
 
 ## Connections & secrets — `@clawnify/connections`
 
