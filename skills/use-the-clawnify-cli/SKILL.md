@@ -125,7 +125,7 @@ clawnify agents list                        # agents on a server (main + special
 clawnify agents skills [agent]              # what an agent can ACTUALLY run (not just its workspace)
 clawnify sessions --agent <slug> --json     # stored sessions + token counters (contextTokens = bloat)
 clawnify sessions history <key> --json      # one session's transcript — where it veered
-clawnify agents pull [dir] --agent <slug>   # fetch AGENTS.md + skills/ + flows/ to edit
+clawnify agents pull [dir] --agent <slug>   # fetch AGENTS.md + skills/ to edit (flows/ come with main only — flows are box-level)
 clawnify agents push [dir]                  # push edits back (additive; next session, no restart)
 clawnify agents grant-skill <s> --to <a>    # share a main-authored skill (or --all for every agent)
 clawnify agents create <slug> --yes         # new specialist (RESTARTS the gateway)
