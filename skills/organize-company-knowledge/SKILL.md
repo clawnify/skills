@@ -5,7 +5,7 @@ description: >-
   Knowledge corpus. Use when the user has dropped many files into the Company
   Knowledge section (or connected a Drive) and wants the agent to distill and
   organize them: cluster by topic, distill each into a canonical markdown doc,
-  file it into a folder (tag), link related docs, and propose it for review.
+  file it into a folder, tag and link it, and propose it for review.
 metadata:
   clawnify:
     displayName: Organize my knowledge
@@ -26,10 +26,15 @@ and publishes from the dashboard.
 
 ## The mental model (read this first)
 
-- **Folders are tags.** There is no separate folder field. A doc's folder is its
-  `tags`. A nested folder is a slash-joined tag: a doc tagged `pricing/enterprise`
-  shows up under **pricing → enterprise** in the dashboard's folder tree. Untagged
-  docs sit at the root.
+- **Three axes, kept separate.** A doc has:
+  - a single **`folder`** — its ONE home, a slash-nested path like
+    `pricing/enterprise`, shown as the browse tree (a doc appears in exactly one
+    place). Omit for a top-level (Unfiled) doc.
+  - many **`tags`** — cross-cutting labels for search/filter (e.g. `q3`,
+    `enterprise`). NOT folders. A doc lives in one folder but can carry several
+    tags.
+  - optional **`meta`** — structured properties distilled from the material
+    (e.g. `effective_date`, `owner`). Preserved for the human reviewer.
 - **Structure is also links.** Use `[[Doc Title]]` wikilinks between related docs.
   These render as the knowledge graph next to the folder tree. Forward references
   to docs you haven't written yet are fine — they mark what's worth writing next.
@@ -46,10 +51,11 @@ and publishes from the dashboard.
 The single most important step — this is what keeps folders coherent instead of
 sprouting `pricing`, `Pricing`, and `price-list` as three bogus folders.
 
-- Call `company_knowledge_list` and read the `tags` already in use across the
-  corpus. That set **is** the current folder structure.
+- Call `company_knowledge_list` and read the `folder` values already in use
+  across the corpus. That set **is** the current folder tree. Note the `tags` too
+  (the label vocabulary), so you reuse those instead of coining synonyms.
 - Reuse existing folders wherever the material fits. Only create a new folder
-  (tag) when nothing existing fits, and prefer a shallow, obvious name
+  when nothing existing fits, and prefer a shallow, obvious name
   (`sales`, `support`, `people`, `legal`, `pricing`, `product`).
 - If the org has no docs yet, propose a small, conventional top level:
   `policy`, `pricing`, `brand`, `sops`, `legal`, `faq` — matching the doc types.
@@ -80,8 +86,12 @@ Call `company_knowledge_propose` once per topic with:
   Use `[[Other Doc Title]]` to link related docs.
 - **`doc_type`** — one of policy / sop / pricing / product / brand / faq / legal /
   reference.
-- **`tags`** — the folder path, e.g. `["pricing/enterprise"]`. This is where it
-  files. Reuse taxonomy from step 1.
+- **`folder`** — the single home path, e.g. `pricing/enterprise`. This is where it
+  files in the tree. Reuse taxonomy from step 1. Omit for a top-level doc.
+- **`tags`** — cross-cutting labels (e.g. `["q3","enterprise"]`), NOT the folder.
+  Optional.
+- **`meta`** — optional structured properties, e.g.
+  `{ "effective_date": "2026-01-01", "owner": "Finance" }`.
 - **`source_ref`** — provenance: what you distilled it from (the source file's id
   or name). **Always set this.** It lets a re-run recognise what's already been
   organized instead of duplicating, and lets the reviewer trace a doc back to its
@@ -89,13 +99,16 @@ Call `company_knowledge_propose` once per topic with:
 
 You can also put the metadata in the markdown itself as YAML frontmatter — it is
 parsed on save and wins over the fields, so this is equivalent and round-trips
-with export:
+with export (`folder`/`tags` are separate keys; any other key is preserved as a
+`meta` property):
 
 ```markdown
 ---
 title: Enterprise Pricing
 doc_type: pricing
-tags: [pricing/enterprise]
+folder: pricing/enterprise
+tags: [q3, enterprise]
+effective_date: 2026-01-01
 ---
 # Enterprise Pricing
 Canonical statement here. See [[Discount Rules]].
