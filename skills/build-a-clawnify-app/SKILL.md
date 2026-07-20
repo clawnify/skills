@@ -17,18 +17,20 @@ expects.
 ## TL;DR
 
 - **One stack.** Hono + React + Vite + `@hono/zod-openapi` +
-  `@clawnify/db` (Drizzle) + Tailwind v4. Nothing else.
+  `@clawnify/db` (Drizzle) + `@clawnify/routes` + Tailwind v4. Nothing else.
 - **Schema lives in two files kept in sync** — `schema.ts` (Drizzle
   DSL, the typed view your queries use) and `schema.sql` (the DDL the
   deploy applies to your app's D1). Change one, change the other.
 - **Queries through `getDB`** — `import { getDB, eq } from
   "@clawnify/db"`. JSON columns auto-serialize.
 - **API routes are `OpenAPIHono` + `createRoute`** — Zod-validated
-  request/response. `app.doc()` auto-generates the OpenAPI spec at
-  `/api/openapi.json`. That spec *is* the tool surface.
+  request/response.
+- **`mountDiscovery(app)`** (from `@clawnify/routes`) is **required** in
+  the entry — it serves `/api/openapi.json` + `/llms.txt` from your live
+  routes. That descriptor *is* the tool surface agents discover.
 - **`clawnify.json`** declares framework, env, and public routes.
   There is no `api.tools[]` — the agent discovers and calls your
-  endpoints by reading the live OpenAPI spec.
+  endpoints via `/llms.txt` (and the OpenAPI spec).
 - **Identity flows via `X-Clawnify-*` headers** injected by the
   platform. Read them, don't fake them.
 
@@ -150,6 +152,7 @@ Rules:
 
 ```ts
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { mountDiscovery } from "@clawnify/routes";
 import api from "./routes";
 
 type Env = { Bindings: { DB: D1Database } };
@@ -158,24 +161,28 @@ const app = new OpenAPIHono<Env>();
 
 app.route("/", api);
 
-app.doc("/api/openapi.json", {
-  openapi: "3.0.0",
-  info: { title: "My app", version: "1.0.0" },
-});
+// REQUIRED: serves /api/openapi.json + /llms.txt so agents can discover
+// this app's API. One call — never hand-write these routes.
+mountDiscovery(app, { title: "My app", version: "1.0.0" });
 
 export default app;
 ```
 
-The entry is thin: mount the routes, then `app.doc()` — that single
-call generates a live OpenAPI 3.0 spec from your `createRoute`
-definitions and serves it at `/api/openapi.json`. You never write a
-`/openapi.json` handler by hand; the framework derives it.
+The entry is thin: mount the routes, then `mountDiscovery(app)` — that
+single call (from `@clawnify/routes`) serves both `/api/openapi.json`
+(generated from your `createRoute` definitions, with schemas) **and**
+`/llms.txt` (the same, agent-readable). Any `/api/*` route written as a
+plain `app.get` with no `createRoute` is still listed from the live
+route table, so the endpoint inventory is always complete.
+**`mountDiscovery(app)` is required in every app** — never hand-write a
+`/openapi.json` handler.
 
 When storage (file uploads) is enabled, the entry also wires the R2
 bucket in a middleware before mounting routes:
 
 ```ts
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { mountDiscovery } from "@clawnify/routes";
 import { initUploads } from "./uploads";
 import api from "./routes";
 
@@ -190,10 +197,7 @@ app.use("*", async (c, next) => {
 
 app.route("/", api);
 
-app.doc("/api/openapi.json", {
-  openapi: "3.0.0",
-  info: { title: "My app", version: "1.0.0" },
-});
+mountDiscovery(app, { title: "My app", version: "1.0.0" });
 
 export default app;
 ```
