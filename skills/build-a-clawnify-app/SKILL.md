@@ -151,8 +151,7 @@ Rules:
 ## `src/server/index.ts` — the OpenAPIHono entry
 
 ```ts
-import { OpenAPIHono } from "@hono/zod-openapi";
-import { mountDiscovery } from "@clawnify/routes";
+import { OpenAPIHono, mountDiscovery } from "@clawnify/routes";
 import api from "./routes";
 
 type Env = { Bindings: { DB: D1Database } };
@@ -181,8 +180,7 @@ When storage (file uploads) is enabled, the entry also wires the R2
 bucket in a middleware before mounting routes:
 
 ```ts
-import { OpenAPIHono } from "@hono/zod-openapi";
-import { mountDiscovery } from "@clawnify/routes";
+import { OpenAPIHono, mountDiscovery } from "@clawnify/routes";
 import { initUploads } from "./uploads";
 import api from "./routes";
 
@@ -213,7 +211,7 @@ Request bodies and params are Zod-validated (`c.req.valid("json")`,
 Blank template — one read route:
 
 ```ts
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z } from "@clawnify/routes";
 import { getDB, desc } from "@clawnify/db";
 import * as schema from "./schema";
 
@@ -254,7 +252,7 @@ export default api;
 CRUD template — the full list/create/update/delete surface:
 
 ```ts
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z } from "@clawnify/routes";
 import { getDB, eq, desc } from "@clawnify/db";
 import * as schema from "./schema";
 
