@@ -17,8 +17,8 @@ expects.
 ## TL;DR
 
 - **One stack.** Hono + React + Vite + `@hono/zod-openapi` +
-  `@clawnify/db` (Drizzle) + `@clawnify/routes` + `@clawnify/app`
-  (identity) + Tailwind v4. Nothing else.
+  `@clawnify/db` (Drizzle) + `@clawnify/app` (entry, routing,
+  identity) + Tailwind v4. Nothing else.
 - **Schema lives in two files kept in sync** — `schema.ts` (Drizzle
   DSL, the typed view your queries use) and `schema.sql` (the DDL the
   deploy applies to your app's D1). Change one, change the other.
@@ -26,9 +26,13 @@ expects.
   "@clawnify/db"`. JSON columns auto-serialize.
 - **API routes are `OpenAPIHono` + `createRoute`** — Zod-validated
   request/response.
-- **`mountDiscovery(app)`** (from `@clawnify/routes`) is **required** in
-  the entry — it serves `/api/openapi.json` + `/llms.txt` from your live
-  routes. That descriptor *is* the tool surface agents discover.
+- **`createApp()`** (from `@clawnify/app`) builds the entry — it returns an
+  `OpenAPIHono` with API discovery already mounted (`/api/openapi.json` +
+  `/llms.txt`, generated from your live routes). That descriptor *is* the
+  tool surface agents discover. Never hand-write those routes.
+- **One import.** `@clawnify/app` re-exports `createRoute`, `z` and
+  `OpenAPIHono`, and adds `user` / `orgId` / `caller`. Import from it, not
+  from `@clawnify/routes` directly.
 - **`clawnify.json`** declares framework, env, and public routes.
   There is no `api.tools[]` — the agent discovers and calls your
   endpoints via `/llms.txt` (and the OpenAPI spec).
@@ -150,45 +154,43 @@ Rules:
 - **Never let `schema.ts` and `schema.sql` drift.** Change one, change
   the other — they must describe the same tables.
 
-## `src/server/index.ts` — the OpenAPIHono entry
+## `src/server/index.ts` — the entry
 
 ```ts
-import { OpenAPIHono, mountDiscovery } from "@clawnify/routes";
+import { createApp } from "@clawnify/app";
 import api from "./routes";
 
 type Env = { Bindings: { DB: D1Database } };
 
-const app = new OpenAPIHono<Env>();
+// db:false — this app reads the database per request via getDB(c.env),
+// which needs no init middleware.
+const app = createApp<Env>({ title: "My app", version: "1.0.0", db: false });
 
 app.route("/", api);
-
-// REQUIRED: serves /api/openapi.json + /llms.txt so agents can discover
-// this app's API. One call — never hand-write these routes.
-mountDiscovery(app, { title: "My app", version: "1.0.0" });
 
 export default app;
 ```
 
-The entry is thin: mount the routes, then `mountDiscovery(app)` — that
-single call (from `@clawnify/routes`) serves both `/api/openapi.json`
-(generated from your `createRoute` definitions, with schemas) **and**
-`/llms.txt` (the same, agent-readable). Any `/api/*` route written as a
-plain `app.get` with no `createRoute` is still listed from the live
-route table, so the endpoint inventory is always complete.
-**`mountDiscovery(app)` is required in every app** — never hand-write a
-`/openapi.json` handler.
+The entry is thin: `createApp()` then mount your routes. `createApp`
+returns an `OpenAPIHono` with **API discovery already mounted** — it
+serves both `/api/openapi.json` (generated from your `createRoute`
+definitions, with schemas) **and** `/llms.txt` (the same, agent-readable).
+Any `/api/*` route written as a plain `app.get` with no `createRoute` is
+still listed from the live route table, so the endpoint inventory is
+always complete. **Never hand-write a `/openapi.json` or `/llms.txt`
+handler** — and don't call `mountDiscovery` yourself; `createApp` did it.
 
 When storage (file uploads) is enabled, the entry also wires the R2
 bucket in a middleware before mounting routes:
 
 ```ts
-import { OpenAPIHono, mountDiscovery } from "@clawnify/routes";
+import { createApp } from "@clawnify/app";
 import { initUploads } from "./uploads";
 import api from "./routes";
 
 type Env = { Bindings: { DB: D1Database; UPLOADS: R2Bucket } };
 
-const app = new OpenAPIHono<Env>();
+const app = createApp<Env>({ title: "My app", version: "1.0.0", db: false });
 
 app.use("*", async (c, next) => {
   initUploads(c.env.UPLOADS);
@@ -197,12 +199,10 @@ app.use("*", async (c, next) => {
 
 app.route("/", api);
 
-mountDiscovery(app, { title: "My app", version: "1.0.0" });
-
 export default app;
 ```
 
-## `src/server/routes.ts` — OpenAPIHono routes with `createRoute`
+## `src/server/routes.ts` — routes with `createRoute`
 
 Each endpoint is a `createRoute({ method, path, summary, request, responses })`
 definition paired with a handler via `api.openapi(route, handler)`.
@@ -213,7 +213,7 @@ Request bodies and params are Zod-validated (`c.req.valid("json")`,
 Blank template — one read route:
 
 ```ts
-import { OpenAPIHono, createRoute, z } from "@clawnify/routes";
+import { OpenAPIHono, createRoute, z } from "@clawnify/app";
 import { getDB, desc } from "@clawnify/db";
 import * as schema from "./schema";
 
@@ -254,7 +254,7 @@ export default api;
 CRUD template — the full list/create/update/delete surface:
 
 ```ts
-import { OpenAPIHono, createRoute, z } from "@clawnify/routes";
+import { OpenAPIHono, createRoute, z } from "@clawnify/app";
 import { getDB, eq, desc } from "@clawnify/db";
 import * as schema from "./schema";
 
