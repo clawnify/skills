@@ -1,6 +1,6 @@
 ---
 name: build-a-clawnify-app
-description: Author a Clawnify app end-to-end — the canonical Hono + React + Vite + @hono/zod-openapi + @clawnify/db (Drizzle) stack, schema.ts (typed queries) kept in sync with schema.sql (the DDL the deploy applies), OpenAPIHono routes (createRoute) that auto-generate an OpenAPI spec, and X-Clawnify-* identity headers. Use when building or modifying an app that deploys to the Clawnify platform.
+description: Author a Clawnify app end-to-end — the canonical Hono + React + Vite + @hono/zod-openapi + @clawnify/db (Drizzle) stack, schema.ts (typed queries) kept in sync with schema.sql (the DDL the deploy applies), OpenAPIHono routes (createRoute) that auto-generate an OpenAPI spec, and platform-injected identity via user()/orgId()/caller(). Use when building or modifying an app that deploys to the Clawnify platform.
 ---
 
 # Build a Clawnify app
@@ -17,7 +17,8 @@ expects.
 ## TL;DR
 
 - **One stack.** Hono + React + Vite + `@hono/zod-openapi` +
-  `@clawnify/db` (Drizzle) + `@clawnify/routes` + Tailwind v4. Nothing else.
+  `@clawnify/db` (Drizzle) + `@clawnify/routes` + `@clawnify/app`
+  (identity) + Tailwind v4. Nothing else.
 - **Schema lives in two files kept in sync** — `schema.ts` (Drizzle
   DSL, the typed view your queries use) and `schema.sql` (the DDL the
   deploy applies to your app's D1). Change one, change the other.
@@ -31,8 +32,9 @@ expects.
 - **`clawnify.json`** declares framework, env, and public routes.
   There is no `api.tools[]` — the agent discovers and calls your
   endpoints via `/llms.txt` (and the OpenAPI spec).
-- **Identity flows via `X-Clawnify-*` headers** injected by the
-  platform. Read them, don't fake them.
+- **Identity is injected by the platform** — read it with `user(c)` /
+  `orgId(c)` / `caller(c)` from `@clawnify/app`. Your app never
+  authenticates anyone.
 
 ## Stack rationale
 
@@ -376,38 +378,52 @@ Patterns to follow:
   Never parse `c.req.raw` by hand.
 - **Declare response shapes** with `.openapi("Name")` schemas — they
   become the documented return type in the spec.
-- **Filter by the org** on every user-facing query (see identity
-  headers below). No exceptions.
+- **Filter by the org** on every user-facing query (see "who is
+  calling" below). No exceptions.
 
-## `src/server` — reading identity headers
+## `src/server` — who is calling
 
-The scaffold's starter routes are single-tenant for brevity. Real
-apps read the caller's identity from the `X-Clawnify-*` headers the
-platform injects, using Hono's `c.req.header(...)` inside the handler:
+The platform authenticates every caller at its perimeter and injects a
+verified identity onto the request (it strips any client-supplied
+version first, so it can't be spoofed). Your app never authenticates
+anyone: no `Authorization`, no cookies, no JWT, no login screen.
+
+Read it with the helpers from `@clawnify/app` — don't parse headers
+yourself:
 
 ```ts
-const orgId = c.req.header("X-Clawnify-Org-Id");
-if (!orgId) return c.json({ error: "unauthorized" }, 401);
-const db = getDB(c.env, { schema });
-const rows = await db
-  .select()
-  .from(schema.notes)
-  .where(eq(schema.notes.orgId, orgId));
+import { user, orgId, caller } from "@clawnify/app";
+
+app.get("/api/notes", async (c) => {
+  const org = orgId(c);
+  if (!org) return c.json({ error: "unauthorized" }, 401);
+
+  const db = getDB(c.env, { schema });
+  return c.json(
+    await db.select().from(schema.notes).where(eq(schema.notes.orgId, org)),
+  );
+});
 ```
 
-The headers the platform injects (never set by the client — it strips
-client-supplied versions and reinjects authenticated ones at the
-perimeter):
+| Helper | Returns |
+|--------|---------|
+| `orgId(c)` | Organization UUID — the tenant key. Filter every user-facing query by it. |
+| `user(c)` | `{ id, email, name, avatarUrl, firstName, lastName }` — or **`null`** when the caller isn't a person. |
+| `caller(c)` | `user`, `api`, `agent`, `agent-browser`, `public`, `bypass`, `system`, or `app`. |
 
-| Header | Value |
-|--------|-------|
-| `X-Clawnify-User-Id` | Supabase user UUID |
-| `X-Clawnify-Org-Id` | Organization UUID |
-| `X-Clawnify-User-Email` | User email |
-| `X-Clawnify-Caller` | `user`, `agent`, `agent-browser`, or `system` |
+Two rules that catch people out:
 
-Trust these headers. Never read `Authorization`, `Bearer` tokens, or
-session cookies directly.
+- **`user(c)` is null for five of the eight caller kinds**
+  (`agent-browser`, `public`, `bypass`, `system`, `app`). Always handle
+  the null case — don't assume a person is present just because a
+  request arrived. For per-user rows, store `user(c).id` in a `user_id`
+  column and filter on it, exactly as you filter on `org_id`.
+- **`firstName` / `lastName` are a heuristic** split of a single stored
+  full name (first word / the rest). Fine for a greeting; never persist
+  them or treat them as someone's legal name — store `name`.
+
+Don't build app-level users, roles, or permissions. Authorization
+already happened at the perimeter.
 
 ## `src/client` — React + plain fetch
 
@@ -743,8 +759,9 @@ queries, drop old column" over a single-step rename.
   via Drizzle. The raw SQL API has `json()` as a helper.
 - Skip the `org_id` filter on a user-facing query. Multi-tenant
   leak is the worst-class bug we can ship.
-- Read auth from `Authorization` / cookies / `Bearer` tokens. Use
-  the `X-Clawnify-*` headers via `c.req.header(...)`.
+- Read auth from `Authorization` / cookies / `Bearer` tokens, or
+  hand-parse `X-Clawnify-*` headers. Use `user(c)` / `orgId(c)` /
+  `caller(c)` from `@clawnify/app`.
 - Call third-party APIs with raw `fetch` or hardcoded tokens. Go
   through `@clawnify/connections` (`connect` / `secret` / `run`).
 - Install `drizzle-orm` as a separate top-level dependency.

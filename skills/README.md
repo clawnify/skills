@@ -40,7 +40,7 @@ there is no drift between `npx skills` and `clawnify skills`.
 
 | Skill | What it teaches |
 |-------|-----------------|
-| [`build-a-clawnify-app`](./build-a-clawnify-app/SKILL.md) | Author a Clawnify app end-to-end — the canonical Hono + React + tRPC + `@clawnify/db` stack, `schema.ts` as source of truth, MCP-tagged tRPC procedures, and `X-Clawnify-*` identity headers. |
+| [`build-a-clawnify-app`](./build-a-clawnify-app/SKILL.md) | Author a Clawnify app end-to-end — the canonical Hono + React + `@hono/zod-openapi` + `@clawnify/db` stack, `schema.ts`/`schema.sql` kept in sync, `createRoute` routes that auto-generate an OpenAPI spec, and platform-injected identity via `user()`/`orgId()`/`caller()`. |
 | [`use-the-clawnify-cli`](./use-the-clawnify-cli/SKILL.md) | Drive the `clawnify` CLI — authenticate, scaffold, run locally, deploy apps and websites, link projects, manage orgs, and inspect deployed apps. |
 
 ## Adding a skill
