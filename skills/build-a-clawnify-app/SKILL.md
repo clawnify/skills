@@ -571,23 +571,54 @@ Rules:
 The old tRPC stack emitted an `api.tools[]` array from procedure meta.
 That mechanism is gone. Today the flow is:
 
-1. Your `createRoute` definitions + `app.doc("/api/openapi.json", …)`
-   auto-generate a live OpenAPI 3.0 spec. The platform still reads this
-   internally (e.g. `update_app` triage decides whether an existing
-   endpoint can serve a request instead of a rebuild), so keep it
-   accurate — but it is **not** the agent's discovery channel.
-2. The agent discovers your endpoints from the app's **`agent.md`**
-   (extracted into `agent_instructions`, returned by `get_app`) and, for
-   the exact routes, `get_app_source`. It then drives them with the
-   built-in `call_app_api` tool (invoke a `method` + `path` on the live
-   app). No per-app MCP registration, no manifest tools array, and no
-   raw-OpenAPI tool — a generated spec is only as complete as its
-   annotations, so `agent.md` is the authored contract of record.
+1. Your `createRoute` definitions auto-generate a live OpenAPI 3.0 spec
+   plus a lean `/llms.txt` index, both served for you — never hand-write
+   or route them yourself. **These are the agent's discovery channel:**
+   it calls `call_app_api` with `GET /llms.txt` (index of every
+   endpoint) or `GET /api/openapi.json` (full request/response schemas).
+   Because both are generated from the live route table, they cannot
+   drift from the code.
+2. The agent then drives your endpoints with `call_app_api` (a `method`
+   + `path` on the live app). No per-app MCP registration and no
+   manifest tools array. Use source reading to *modify* code, not to
+   discover endpoints.
 
-So you make an endpoint "agent-callable" by describing it in `agent.md`
-(what it does, method + path, when to use it) and shipping it with a
-clear `summary`/`description` and Zod-typed request/response. The
-clearer both are, the more reliably the agent uses it.
+So you make an endpoint "agent-callable" by defining it with
+`createRoute()` + `app.openapi()` and giving it a clear
+`summary`/`description` with Zod-typed request/response. The clearer
+those are, the more reliably the agent uses it.
+
+### `agent.md` — lead with the procedure, not the endpoint list
+
+`agent.md` is extracted into `agent_instructions` on every build. Since
+discovery is already covered by the generated surfaces above, **`agent.md`
+is not an API reference** — re-listing every payload there just creates a
+second source of truth that goes stale the first time a route changes.
+It is the one place for what generation can't produce: **judgment**.
+
+Write it in this order:
+
+1. **Division of labour, first and short.** What the agent should do
+   itself vs. what it must delegate to the app — and say the wrong move
+   out loud (*"never look up contact details yourself; post the records
+   and let the app resolve them"*). This one block prevents more misuse
+   than the rest of the file combined.
+2. **The procedure** — numbered steps for the app's main job, written so
+   the agent can follow them on a request it has never seen.
+3. **Pages**, flagging the screenshot-friendly ones.
+4. **API anchors, not API docs** — method, path, and *when to reach for
+   it*, plus the one or two request shapes the agent writes most often.
+   For anything else, let it read `/llms.txt`.
+5. **How to read failures**, and any **cost discipline** — which calls
+   spend the user's money and which are free.
+
+**Don't ship a per-app skill.** A skill's frontmatter stays resident in
+agent context, so one skill per app grows the agent's context floor as
+the app count grows; `agent_instructions` and `/llms.txt` are pulled on
+demand instead. Skills are for **cross-app** procedures — if one earns
+reuse across more than one app, promote that single procedure
+(parameterized) to the shared skills library rather than copying it into
+every app.
 
 ## Connections & secrets — `@clawnify/connections`
 
