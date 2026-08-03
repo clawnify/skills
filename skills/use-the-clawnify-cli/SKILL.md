@@ -125,13 +125,23 @@ clawnify agents list                        # agents on a server (main + special
 clawnify agents skills [agent]              # what an agent can ACTUALLY run (not just its workspace)
 clawnify sessions --agent <slug> --json     # stored sessions + token counters (contextTokens = bloat)
 clawnify sessions history <key> --json      # one session's transcript — where it veered
-clawnify agents pull [dir] --agent <slug>   # fetch AGENTS.md + skills/ to edit (flows/ come with main only — flows are box-level)
+clawnify agents pull [dir] --agent <slug>   # fetch AGENTS.md + skills/ to edit (flows/ come with main only — flows belong to the main agent)
 clawnify agents push [dir]                  # push edits back (additive; next session, no restart)
 clawnify agents grant-skill <s> --to <a>    # share a main-authored skill (or --all for every agent)
 clawnify agents create <slug> --yes         # new specialist (RESTARTS the gateway)
 clawnify env set <KEY> <VALUE>              # org custom env — NON-SECRET only (restarts gateway)
 clawnify connections connect <id>           # how to connect an integration (dashboard OAuth; you can't)
+clawnify flows list                         # the main agent's flows + latest published version
+clawnify flows read <name>                  # print a flow's draft
+clawnify flows create <name> --file f.json  # new draft (validated on save)
+clawnify flows edit <name>                  # edit the draft ($EDITOR, or --file to replace)
+clawnify flows publish <name>               # cut the next numbered live version
 ```
+
+**Flows:** drafts never change what's live — runs and triggers use the latest
+**published** version. `create`/`edit`/`publish` validate automatically and
+report per-node errors; fix and re-save. Prefer these verbs over pushing raw
+`flows/*.json` edits (which skip validation and versioning).
 
 **Boundary:** everything above is autonomous *except* the human-auth actions —
 connecting an integration (OAuth) and handing over a secret/API key. For those,

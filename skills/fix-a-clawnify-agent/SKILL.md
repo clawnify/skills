@@ -78,9 +78,13 @@ each with a narrow instruction, and the heavy/deterministic parts (fetch data,
 fill a template, render the deck) run *without* the model — less veer, less cost.
 
 Where instructions live and how edits land:
-- Edit **`AGENTS.md`** (and `skills/`, `flows/`). Push via the org's **GitHub
+- Edit **`AGENTS.md`** (and `skills/`). Push via the org's **GitHub
   sync repo** (auto-deploys to the box) or `clawnify deploy`. See the
   `use-the-clawnify-cli` skill for the commands.
+- Edit **flows** with `clawnify flows edit <name>` then `clawnify flows
+  publish <name>` — validated on save, and drafts aren't live until published
+  (runs and triggers keep using the last published version). Raw `flows/*.json`
+  edits via the repo also land, but skip validation and versioning.
 - **No gateway restart needed** — the agent picks up new `AGENTS.md` / skills /
   flows on its **next session**.
 - **Never edit any `CLAWNIFY-*.md`** file (`CLAWNIFY-SOUL/AGENTS/TOOLS.md`) —
