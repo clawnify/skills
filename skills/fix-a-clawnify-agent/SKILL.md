@@ -82,9 +82,10 @@ Where instructions live and how edits land:
   sync repo** (auto-deploys to the box) or `clawnify deploy`. See the
   `use-the-clawnify-cli` skill for the commands.
 - Edit **flows** with `clawnify flows edit <name>` then `clawnify flows
-  publish <name>` — validated on save, and drafts aren't live until published
-  (runs and triggers keep using the last published version). Raw `flows/*.json`
-  edits via the repo also land, but skip validation and versioning.
+  publish <name>` — validated on save; once a flow has a published version,
+  runs and triggers keep using it until you publish again (before the first
+  publish, the draft is what runs). Raw `flows/*.json` edits via the repo also
+  land, but skip validation and versioning.
 - **No gateway restart needed** — the agent picks up new `AGENTS.md` / skills /
   flows on its **next session**.
 - **Never edit any `CLAWNIFY-*.md`** file (`CLAWNIFY-SOUL/AGENTS/TOOLS.md`) —

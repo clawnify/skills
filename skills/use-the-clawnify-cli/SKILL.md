@@ -138,8 +138,9 @@ clawnify flows edit <name>                  # edit the draft ($EDITOR, or --file
 clawnify flows publish <name>               # cut the next numbered live version
 ```
 
-**Flows:** drafts never change what's live — runs and triggers use the latest
-**published** version. `create`/`edit`/`publish` validate automatically and
+**Flows:** runs and triggers use the latest **published** version, so editing a
+draft doesn't change what's live — until a flow's first publish, though, the
+draft *is* what runs. `create`/`edit`/`publish` validate automatically and
 report per-node errors; fix and re-save. Prefer these verbs over pushing raw
 `flows/*.json` edits (which skip validation and versioning).
 
