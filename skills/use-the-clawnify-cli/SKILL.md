@@ -116,19 +116,33 @@ pass `--force`.
 
 Drive an org's AI agents from the terminal — observe them and fix them. See the
 `fix-a-clawnify-agent` skill for the workflow; this is the command list. All
-org-scoped and **repo-independent** (reads session data + the box, never a
-GitHub repo). Add `--server <id>` when the org has more than one server.
+org-scoped and **repo-independent** (reads live agent state, never a GitHub
+repo).
+
+**The model — two levels, and only two.** An org has one or more **agents** (the
+AI employees, e.g. "Ash"). Each agent can have **sub-agents**: narrower helpers
+it delegates to. `clawnify agents list` prints both, sub-agents indented under
+the agent that owns them:
+
+```
+Ash  (ready, nbg1)
+  id: 7c2f…
+  sub-agents:
+    └─ research  (Research)  4 sessions
+```
+
+An org normally has exactly one agent, so nothing needs to be selected. When it
+has several, pass `--agent-id <id>` (the `id:` line above).
 
 ```bash
-clawnify servers list                       # the org's servers (an org can have several)
-clawnify agents list                        # agents on a server (main + specialists)
+clawnify agents list                        # the org's agents, each with its sub-agents
 clawnify agents skills [agent]              # what an agent can ACTUALLY run (not just its workspace)
 clawnify sessions --agent <slug> --json     # stored sessions + token counters (contextTokens = bloat)
 clawnify sessions history <key> --json      # one session's transcript — where it veered
 clawnify agents pull [dir] --agent <slug>   # fetch AGENTS.md + skills/ to edit (flows/ come with main only — flows belong to the main agent)
 clawnify agents push [dir]                  # push edits back (additive; next session, no restart)
 clawnify agents grant-skill <s> --to <a>    # share a main-authored skill (or --all for every agent)
-clawnify agents create <slug> --yes         # new specialist (RESTARTS the gateway)
+clawnify agents create <slug> --yes         # new SUB-AGENT (RESTARTS the gateway)
 clawnify env set <KEY> <VALUE>              # org custom env — NON-SECRET only (restarts gateway)
 clawnify connections connect <id>           # how to connect an integration (dashboard OAuth; you can't)
 clawnify flows list                         # the main agent's flows + latest published version
@@ -147,7 +161,13 @@ report per-node errors; fix and re-save. Prefer these verbs over pushing raw
 **Boundary:** everything above is autonomous *except* the human-auth actions —
 connecting an integration (OAuth) and handing over a secret/API key. For those,
 explain the dashboard steps; never fake them. `agents create` / `env set`
-restart the gateway, so confirm before running them on a busy box.
+restart the gateway, so confirm before running them on a busy agent.
+
+**`agents create` makes a NEW sub-agent — it is never the way to "find" an
+existing one.** If you were looking for an agent and `agents list` didn't show
+it, the answer is that the org doesn't have it, or you're in the wrong org
+(`clawnify org list`). Creating one restarts the gateway and leaves a duplicate
+behind.
 
 ## Connections & env names
 
@@ -189,8 +209,8 @@ block, installs bundled skills, and adds the Clawnify MCP server to
 ## The raw escape hatch
 
 ```bash
-clawnify api /servers                               # any GET
-clawnify api /servers/<id>/agents -X POST -d '{…}'  # any method + JSON body
+clawnify api /agents                          # any GET
+clawnify api /apps -X POST -d '{…}'           # any method + JSON body
 ```
 
 `clawnify api <path>` makes an authenticated request to any Clawnify API path —

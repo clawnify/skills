@@ -6,11 +6,15 @@ description: Diagnose and fix a Clawnify AI agent that veers off its instruction
 # Fix a misbehaving Clawnify agent
 
 You are the planner and thinker. The Clawnify agent — the customer's
-WhatsApp / Telegram / Slack / email "AI employee", running OpenClaw on their
-server — is the executor. When it misbehaves your job is to **read what it
-actually did, find the real cause, and change the durable inputs.** Not to
-patch instructions blind, and not to burn the agent's own (expensive) model
-tokens on trial-and-error.
+WhatsApp / Telegram / Slack / email "AI employee" — is the executor. When it
+misbehaves your job is to **read what it actually did, find the real cause, and
+change the durable inputs.** Not to patch instructions blind, and not to burn
+the agent's own (expensive) model tokens on trial-and-error.
+
+**Know what you're looking at.** An org has one or more **agents** (the
+employees). Each may have **sub-agents** — narrower helpers it delegates to.
+`clawnify agents list` shows both, sub-agents indented under their agent. That
+is the whole hierarchy; there is no other tier to go looking for.
 
 The person you're helping is often **not** an AI specialist. So: diagnose
 first, then **explain the cause in plain language and correct the
@@ -36,7 +40,8 @@ itself burns tokens. Measure it — don't guess (Step 1).
 ## Step 1 — Observe (read what actually happened)
 
 ```bash
-clawnify sessions                       # every agent's sessions on the server, newest first
+clawnify agents list                    # the org's agents + their sub-agents — START HERE
+clawnify sessions                       # every agent's sessions, newest first
 clawnify sessions --agent ash --json    # ash only, with token counters (contextTokens = bloat signal)
 clawnify sessions history <key> --json  # the transcript of one run — where it actually veered
 clawnify agents skills ash              # what ash can ACTUALLY run (workspace + shared skills)
@@ -79,7 +84,7 @@ fill a template, render the deck) run *without* the model — less veer, less co
 
 Where instructions live and how edits land:
 - Edit **`AGENTS.md`** (and `skills/`). Push via the org's **GitHub
-  sync repo** (auto-deploys to the box) or `clawnify deploy`. See the
+  sync repo** (auto-deploys to the agent) or `clawnify deploy`. See the
   `use-the-clawnify-cli` skill for the commands.
 - Edit **flows** with `clawnify flows edit <name>` then `clawnify flows
   publish <name>` — validated on save; once a flow has a published version,
@@ -144,6 +149,11 @@ Preempt these — they cause "I set it up but the agent ignores it":
   (Settings → Environment Variables / API Keys); guide the user there. Use
   `env set` only for non-secret config. And remember `agents create` / `env set`
   **restart the gateway** — confirm with the user before you run them on a live,
-  busy box.
+  busy agent.
+- **Never run `agents create` to "find" an agent.** It creates a *new sub-agent*
+  and restarts the gateway. If the agent you expected isn't in `clawnify agents
+  list`, you are in the wrong org (`clawnify org list`) or it genuinely doesn't
+  exist — ask. Creating one leaves a duplicate the customer then has to live
+  with, and interrupts the real agent while it does.
 - Prefer the **smallest durable fix** (a session habit, a tightened `AGENTS.md`,
   one flow) over more instructions.
