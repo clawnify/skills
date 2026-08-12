@@ -41,6 +41,7 @@ there is no drift between `npx skills` and `clawnify skills`.
 | Skill | What it teaches |
 |-------|-----------------|
 | [`build-a-clawnify-app`](./build-a-clawnify-app/SKILL.md) | Author a Clawnify app end-to-end — the canonical Hono + React + `@hono/zod-openapi` + `@clawnify/db` stack, `schema.ts`/`schema.sql` kept in sync, `createRoute` routes that auto-generate an OpenAPI spec, and platform-injected identity via `user()`/`orgId()`/`caller()`. |
+| [`build-a-clawnify-website`](./build-a-clawnify-website/SKILL.md) | Build and ship a website — Astro on Workers, the built-in form system (submissions captured, emailed, or handed to an agent — never hand-roll a form or hardcode the website id), assets, and the draft-then-publish deploy flow. |
 | [`use-the-clawnify-cli`](./use-the-clawnify-cli/SKILL.md) | Drive the `clawnify` CLI — authenticate, scaffold, run locally, deploy apps and websites, link projects, manage orgs, and inspect deployed apps. |
 
 ## Adding a skill
