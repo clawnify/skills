@@ -90,6 +90,19 @@ that, and the right one depends on whether your form is registered:
   data, but if the site later moves onto the tree renderer, registration will
   start rejecting them. Leave a comment saying so.
 
+### PDF attachments
+
+The Contact block can collect one PDF per submission (job applications, RFQs).
+Off by default — enable it with the block's `attachment` prop (and optionally
+`attachmentLabel`), then **publish**: the file field is registered at publish
+time, and the ingest rejects files on forms that haven't registered one. Rules
+the platform enforces server-side (don't fight them client-side): PDF only,
+verified by content not by extension, max 10 MB. The submission's payload
+carries the filename and a download link that only the site's own organization
+can open — the file is never on a public URL. When a file is attached the
+submit script posts `multipart/form-data` instead of JSON; both are
+preflight-free, and the block already handles the switch.
+
 ### Where submissions go
 
 Every submission is stored and visible in the dashboard. From there it can
