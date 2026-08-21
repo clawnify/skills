@@ -10,9 +10,12 @@ site per organization. You write pages; the platform owns hosting, forms and
 the publish flow.
 
 ```bash
-clawnify init --type website --name "My Site" website
+npx clawnify@latest init --type website --name "My Site" website
 cd website && pnpm install && pnpm dev     # http://localhost:4321
 ```
+
+Always invoke the CLI as `npx clawnify@latest <command>` — never a
+global or pinned install; stale CLIs miss deploy guards and fixes.
 
 ```
 website/
@@ -119,7 +122,7 @@ than linking someone else's CDN from your markup.
 ## Deploying: draft first, then publish
 
 ```bash
-clawnify deploy            # → the DRAFT site, visible only to your org
+npx clawnify@latest deploy   # → the DRAFT site, visible only to your org
 ```
 
 Deploying **never** changes the live site. Going live is a separate, explicit

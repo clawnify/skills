@@ -134,8 +134,9 @@ Rules:
 `clawnify dev` and `clawnify deploy` (local-directory deploys) generate
 the migration SQL themselves — editing `schema.ts` and running dev or
 deploy is the whole workflow. To refresh the SQL explicitly without
-either, run `clawnify db generate` (the scaffold's `pnpm db:generate`
-is an alias for it). Deploy refuses a database-enabled app with no DDL,
+either, run `npx clawnify@latest db generate` (the scaffold's
+`pnpm db:generate` is an alias for it). Always invoke the CLI as
+`npx clawnify@latest` — never a global or pinned install. Deploy refuses a database-enabled app with no DDL,
 so a broken generate fails loudly, not silently.
 
 One artifact to leave alone: after a successful signed-in deploy the CLI
@@ -765,7 +766,7 @@ The workflow is:
 1. Edit `src/server/schema.ts` for the new shape (types + queries).
 2. Run `pnpm db:generate` — emits the migration SQL under
    `.clawnify/drizzle/`.
-3. Run `clawnify dev` locally, then `clawnify deploy`.
+3. Run `npx clawnify@latest dev` locally, then `npx clawnify@latest deploy`.
 
 On deploy your schema changes are applied to the app's database — new
 tables and columns are added automatically.
@@ -806,7 +807,7 @@ queries, drop old column" over a single-step rename.
 - Give every route a clear `summary`/`description` and Zod-typed
   request/response so the agent can discover and call it via the
   OpenAPI spec.
-- Test locally with `clawnify dev` before deploying; deploys go live at
+- Test locally with `npx clawnify@latest dev` before deploying; deploys go live at
   `https://<slug>.apps.clawnify.com` (the dashboard's preview pane shows
   the draft tier).
 - When unsure about a Drizzle pattern, check the `@clawnify/db`

@@ -14,12 +14,18 @@ For **authoring app code** (stack, schema, route patterns), use the
 ## TL;DR
 
 ```bash
-npm i -g clawnify        # or: npx clawnify@latest <command>
-clawnify login           # browser sign-in, paste-code fallback
-clawnify init my-app     # scaffold an app or website
-cd my-app && clawnify dev
-clawnify deploy          # → https://<slug>.apps.clawnify.com
+npx clawnify@latest login           # browser sign-in, paste-code fallback
+npx clawnify@latest init my-app     # scaffold an app or website
+cd my-app && npx clawnify@latest dev
+npx clawnify@latest deploy          # → https://<slug>.apps.clawnify.com
 ```
+
+- **Always invoke as `npx clawnify@latest <command>`.** Never install
+  globally or pin a version — the CLI ships guards and self-heals
+  continuously, and a stale copy misses them. Reference blocks below
+  show bare `clawnify <cmd>` for brevity; run them with the full
+  `npx clawnify@latest` form. (Scaffolded apps' package scripts —
+  `pnpm dev`, `pnpm deploy` — already delegate correctly.)
 
 - **Auth once, org lazily.** `login` only signs you in; the first
   command that needs an organization asks once and remembers it.

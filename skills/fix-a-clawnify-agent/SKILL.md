@@ -84,7 +84,7 @@ fill a template, render the deck) run *without* the model — less veer, less co
 
 Where instructions live and how edits land:
 - Edit **`AGENTS.md`** (and `skills/`). Push via the org's **GitHub
-  sync repo** (auto-deploys to the agent) or `clawnify deploy`. See the
+  sync repo** (auto-deploys to the agent) or `npx clawnify@latest deploy`. See the
   `use-the-clawnify-cli` skill for the commands.
 - Edit **flows** with `clawnify flows edit <name>` then `clawnify flows
   publish <name>` — validated on save; once a flow has a published version,
