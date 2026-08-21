@@ -1,6 +1,6 @@
 ---
 name: build-a-clawnify-app
-description: Author a Clawnify app end-to-end — the canonical Hono + React + Vite + @hono/zod-openapi + @clawnify/db (Drizzle) stack, schema.ts (typed queries) kept in sync with schema.sql (the DDL the deploy applies), OpenAPIHono routes (createRoute) that auto-generate an OpenAPI spec, and platform-injected identity via user()/orgId()/caller(). Use when building or modifying an app that deploys to the Clawnify platform.
+description: Author a Clawnify app end-to-end — the canonical Hono + React + Vite + @hono/zod-openapi + @clawnify/db (Drizzle) stack, schema.ts as the single schema source of truth (DDL generated via pnpm db:generate), OpenAPIHono routes (createRoute) that auto-generate an OpenAPI spec, and platform-injected identity via user()/orgId()/caller(). Use when building or modifying an app that deploys to the Clawnify platform.
 ---
 
 # Build a Clawnify app
@@ -19,9 +19,10 @@ expects.
 - **One stack.** Hono + React + Vite + `@hono/zod-openapi` +
   `@clawnify/db` (Drizzle) + `@clawnify/app` (entry, routing,
   identity) + Tailwind v4. Nothing else.
-- **Schema lives in two files kept in sync** — `schema.ts` (Drizzle
-  DSL, the typed view your queries use) and `schema.sql` (the DDL the
-  deploy applies to your app's D1). Change one, change the other.
+- **Schema lives in `schema.ts` alone** — the Drizzle DSL your queries
+  compile against. The DDL is generated from it (`pnpm db:generate` →
+  `.clawnify/drizzle/*.sql`); never hand-write a `schema.sql` in a
+  scaffolded app.
 - **Queries through `getDB`** — `import { getDB, eq } from
   "@clawnify/db"`. JSON columns auto-serialize.
 - **API routes are `OpenAPIHono` + `createRoute`** — Zod-validated
@@ -58,14 +59,16 @@ my-app/
   vite.config.ts             ← @vitejs/plugin-react + @tailwindcss/vite; proxies /api → :8787
   index.html
   .gitignore
-  .clawnify/                 ← CLI cache (gitignored)
-    wrangler.toml            ← Generated per-dev wrangler config
+  .clawnify/                 ← Managed by the CLI (gitignored) — never edit
+    wrangler.toml            ← Generated wrangler config
+    drizzle.config.ts        ← Generated drizzle config (from clawnify.json + schema.ts)
+    drizzle/                 ← Generated migration SQL (applied by dev + deploy)
+    applied-migrations.json  ← Local-apply tracker
   src/
     server/
       index.ts               ← OpenAPIHono entry — mounts routes, serves /api/openapi.json
       routes.ts              ← OpenAPIHono + createRoute definitions — the API surface
-      schema.ts              ← Drizzle table definitions (typed view for queries)
-      schema.sql             ← canonical DDL the deploy applies — keep in sync with schema.ts
+      schema.ts              ← Drizzle table definitions — the single source of truth
       worker-env.d.ts        ← Cloudflare Workers types reference
       uploads.ts             ← R2 helpers (only when storage is enabled)
     client/
@@ -74,12 +77,14 @@ my-app/
       index.css              ← @import "tailwindcss"
 ```
 
-## Schema — `schema.ts` + `schema.sql`, kept in sync
+## Schema — `schema.ts` is the single source of truth
 
-Two files describe the same tables. `schema.ts` (Drizzle DSL) is the
-typed view your queries compile against; `schema.sql` is the DDL the
-deploy applies to your app's D1. **When you change one, update the
-other** — they must describe the same tables.
+`schema.ts` (Drizzle DSL) defines the tables. Do **not** hand-write a
+`schema.sql` in a scaffolded app, and there is no toolchain config to
+maintain: the drizzle config is a managed artifact the CLI materializes
+into `.clawnify/` (from `clawnify.json` + the schema path), and the DDL
+is generated from `schema.ts` into `.clawnify/drizzle/*.sql` — which is
+what `clawnify dev` applies locally and the deploy applies to your D1.
 
 The scaffold's starter table (blank template):
 
@@ -124,35 +129,30 @@ Rules:
   filters by it. No exceptions.
 - Identifiers: snake_case in SQL, camelCase in TS (Drizzle bridges).
 
-## `schema.sql` — the DDL the deploy applies
+## Generating the DDL — automatic, or `clawnify db generate`
 
-Alongside `schema.ts`, keep a `schema.sql` describing the same tables.
-This is the DDL applied to your app's database on deploy.
+`clawnify dev` and `clawnify deploy` (local-directory deploys) generate
+the migration SQL themselves — editing `schema.ts` and running dev or
+deploy is the whole workflow. To refresh the SQL explicitly without
+either, run `clawnify db generate` (the scaffold's `pnpm db:generate`
+is an alias for it). Deploy refuses a database-enabled app with no DDL,
+so a broken generate fails loudly, not silently.
 
-```sql
--- src/server/schema.sql  (mirror of the schema.ts tables)
-CREATE TABLE IF NOT EXISTS notes (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  org_id     TEXT NOT NULL,
-  title      TEXT NOT NULL,
-  body       TEXT NOT NULL DEFAULT '',
-  tags       TEXT NOT NULL DEFAULT '[]',        -- JSON column
-  created_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS notes_by_org ON notes(org_id, created_at);
-```
+One artifact to leave alone: after a successful signed-in deploy the CLI
+syncs a read-only `schema.sql` snapshot of the DEPLOYED schema into the
+app root. It is generated output for reference/diffing — never edit it,
+and never treat it as the source of truth (`schema.ts` is).
 
 Rules:
-- Always `CREATE TABLE IF NOT EXISTS` — the apply is additive and
-  re-run-safe.
-- Add a new column with `ALTER TABLE <t> ADD COLUMN …` at the **end** of
-  `schema.sql`, and reflect it in `schema.ts`. The deploy adds it.
 - Deploys are **additive**: new tables and columns are added
   automatically. Destructive changes (dropping or retyping a column) are
   not applied automatically — do those deliberately, and never drop a
   table with user data unless explicitly asked.
-- **Never let `schema.ts` and `schema.sql` drift.** Change one, change
-  the other — they must describe the same tables.
+- Never edit the generated `.clawnify/drizzle/*.sql` by hand — change
+  `schema.ts` and regenerate.
+- A hand-written `schema.sql` at the app root is accepted **only** for
+  apps that don't use Drizzle at all (e.g. some template repos). A
+  scaffolded app never needs one.
 
 ## `src/server/index.ts` — the entry
 
@@ -563,8 +563,8 @@ Rules:
   webhooks, RSS, embedded feeds.
 - **`framework: "react+hono"`** for new apps. Never `preact+hono` or
   `vite-preact` — those are legacy.
-- **`database: true`** if the app uses a DB. Ship both `schema.ts`
-  (typed) and `schema.sql` (the applied DDL), kept in sync.
+- **`database: true`** if the app uses a DB. `schema.ts` defines the
+  tables; run `pnpm db:generate` after changing it.
 
 ## How the agent reaches your API (no `api.tools[]`)
 
@@ -697,10 +697,10 @@ retry, a "do this in 10 minutes" — use the **Clawnify managed queue service**
 over HTTP. It owns the clock, retries, and at-least-once delivery, then calls an
 endpoint on *your own app* back at the scheduled time.
 
-It's a thin seam over a platform primitive, same shape as `@clawnify/db` /
-`@clawnify/connections` (a `@clawnify/queue` package is coming; inline the seam
-until then). Auth is the build-injected `env.CLAWNIFY_TOKEN`; with no token
-(local dev) the seam degrades to a no-op.
+Use the published `@clawnify/queue` package — `enqueueJob`, `cancelJob`,
+`verifyDelivery` — same shape as `@clawnify/db` / `@clawnify/connections`.
+Auth is the build-injected `env.CLAWNIFY_TOKEN`; with no token (local dev)
+it degrades to a no-op.
 
 **Enqueue** a deferred call to your own endpoint:
 
@@ -760,12 +760,11 @@ open and return when done; don't fire-and-forget past the response.
 
 ## Migrations
 
-Keep `schema.ts` and `schema.sql` in sync by hand. The workflow is:
+The workflow is:
 
 1. Edit `src/server/schema.ts` for the new shape (types + queries).
-2. Make the matching edit in `src/server/schema.sql` — a new
-   `CREATE TABLE IF NOT EXISTS`, or `ALTER TABLE … ADD COLUMN …` at the
-   **end** of the file for a new column.
+2. Run `pnpm db:generate` — emits the migration SQL under
+   `.clawnify/drizzle/`.
 3. Run `clawnify dev` locally, then `clawnify deploy`.
 
 On deploy your schema changes are applied to the app's database — new
@@ -778,12 +777,11 @@ queries, drop old column" over a single-step rename.
 
 ## What the agent must NOT do
 
-- Author a `/openapi.json` handler by hand. `app.doc("/api/openapi.json", …)`
-  generates it from your `createRoute` definitions.
-- Let `schema.ts` and `schema.sql` drift. They describe the same
-  tables — change both, every time.
-- Hand-author migration SQL files. Make schema changes in `schema.sql`
-  (and mirror them in `schema.ts`); the deploy applies them.
+- Author a `/openapi.json` or `/llms.txt` handler by hand. `createApp()`
+  mounts both, generated from your `createRoute` definitions.
+- Hand-write a `schema.sql`, edit anything under `.clawnify/`, or add a
+  root `drizzle.config.ts`. Schema changes happen in `schema.ts`; the
+  CLI generates and applies the SQL.
 - Invent an `api.tools[]` array in the manifest. It isn't a valid
   field — the OpenAPI spec is the tool surface.
 - Use `JSON.stringify` on query params. JSON columns auto-serialize
@@ -808,9 +806,9 @@ queries, drop old column" over a single-step rename.
 - Give every route a clear `summary`/`description` and Zod-typed
   request/response so the agent can discover and call it via the
   OpenAPI spec.
-- Test on the draft URL (`<slug>.draft.clawnify.com`) before
-  publishing — the preview tier catches schema drift and type errors
-  at build time.
+- Test locally with `clawnify dev` before deploying; deploys go live at
+  `https://<slug>.apps.clawnify.com` (the dashboard's preview pane shows
+  the draft tier).
 - When unsure about a Drizzle pattern, check the `@clawnify/db`
   README for the current API + version notes.
 

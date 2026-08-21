@@ -8,7 +8,7 @@ description: Use the Clawnify CLI end-to-end — authenticate, scaffold, run loc
 Canonical skill: how to drive the `clawnify` CLI. Same content for
 humans and for AI coding agents operating a terminal.
 
-For **authoring app code** (stack, schema, tRPC patterns), use the
+For **authoring app code** (stack, schema, route patterns), use the
 `build-a-clawnify-app` skill — this one covers the tooling around it.
 
 ## TL;DR
@@ -105,7 +105,8 @@ clawnify ls                # list deployed apps in the active org
 clawnify logs <app-id>     # build logs
 clawnify open <slug>       # open the live app in the browser
 clawnify rm <app-id>       # delete an app
-clawnify pull schema --from <app-id-or-slug>   # fetch live schema.sql
+clawnify db generate       # refresh .clawnify/drizzle/*.sql from schema.ts
+clawnify pull schema --from <app-id-or-slug>   # snapshot the DEPLOYED schema to schema.sql (generated; read-only reference)
 clawnify docs [slug]       # usage README for an app (org index if omitted)
 ```
 
