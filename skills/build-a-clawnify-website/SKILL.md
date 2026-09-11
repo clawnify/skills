@@ -75,10 +75,39 @@ classes freely. Preserve, exactly:
 
 - the computed `action` (never a prop, never a literal),
 - the Turnstile widget,
-- the `data-clawnify-form` attribute and its submit script,
+- the `data-clawnify-managed-form` attribute,
 - `export const schema`,
 - destructuring only known props — never splat leftover props onto `<form>`,
   or an injected `action` becomes a way to point your form at someone else.
+
+There is no submit script to copy. The runtime lives in the framework catch-all
+(`src/pages/[...path].astro`) and binds every `data-clawnify-managed-form` on
+the page. If the block you inherited still has its own inline `<script>` and a
+`data-clawnify-form` attribute, it is the older shape: it still works, and you
+can migrate it by deleting the script and renaming the attribute. Do not carry
+both attributes on one form, and do not add `data-clawnify-form` to a managed
+form: older blocks bind that selector unconditionally, so the form would submit
+twice.
+
+### After a successful submit
+
+Two options, and the default is unchanged.
+
+- **Inline message** (default). The `successText` prop, rendered into the
+  status line.
+- **Redirect.** Set the `successUrl` prop, or `data-success-url` on any form
+  you hand-built. A site-relative path (`/thanks`) or an absolute `https://`
+  URL (a booking page is fine). Anything else is ignored and the message is
+  shown instead, which is what keeps `javascript:` out of the navigation.
+
+A redirect to a thank-you page is also the only way to count a form conversion
+in the analytics tool, which has no custom events: the dashboard Submissions
+panel counts submissions, but a pageview is what gives you a rate.
+
+Need a side effect on success, like setting a cookie? Listen for the
+`clawnify:form-success` event on the form. It is cancelable, so
+`preventDefault()` suppresses the redirect if you would rather navigate
+yourself.
 
 ### Fields
 
