@@ -1,0 +1,16 @@
+{
+  "name": "clawnify",
+  "description": "Clawnify for Claude: the Clawnify plugin, with the Clawnify connector and skills for building on the platform.",
+  "owner": {
+    "name": "Clawnify",
+    "url": "https://clawnify.com"
+  },
+  "plugins": [
+    {
+      "name": "clawnify",
+      "description": "The Clawnify connector (company knowledge, projects, memory, agents, apps, flows) plus skills for building and running on Clawnify.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

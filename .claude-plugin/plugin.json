@@ -1,0 +1,13 @@
+{
+  "name": "clawnify",
+  "displayName": "Clawnify",
+  "description": "Work on your Clawnify organization from Claude: ground answers in your company knowledge, check and fix your AI agents, and build and deploy apps and websites on the platform.",
+  "author": {
+    "name": "Clawnify",
+    "url": "https://clawnify.com"
+  },
+  "homepage": "https://clawnify.com",
+  "repository": "https://github.com/clawnify/skills",
+  "license": "MIT",
+  "keywords": ["clawnify", "ai-agents", "company-knowledge", "apps", "websites"]
+}
