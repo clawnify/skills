@@ -97,6 +97,11 @@ clawnify deploy --update-existing    # same, explicit
 clawnify deploy --create-new         # take the suggested new slug
 ```
 
+If the app has unpublished changes from the chat, the deploy won't publish
+them: it lands as a draft on top of them (publish both in the dashboard), or
+it is refused if it would overwrite them. `--discard-draft` replaces them;
+only use it when the user says those changes can go.
+
 Link an existing deployed app to the current directory instead of
 creating a new one:
 
