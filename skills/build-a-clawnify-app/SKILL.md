@@ -214,8 +214,8 @@ Request bodies and params are Zod-validated (`c.req.valid("json")`,
 Blank template — one read route:
 
 ```ts
-import { OpenAPIHono, createRoute, z } from "@clawnify/app";
-import { getDB, desc } from "@clawnify/db";
+import { OpenAPIHono, createRoute, z, PageQuery, pageParams, pagedResponse } from "@clawnify/app";
+import { getDB, desc, like } from "@clawnify/db";
 import * as schema from "./schema";
 
 type Env = { Bindings: { DB: D1Database } };
@@ -232,20 +232,24 @@ api.openapi(
     method: "get",
     path: "/api/items",
     summary: "List items",
-    responses: {
-      200: {
-        description: "List of items",
-        content: { "application/json": { schema: z.array(ItemSchema) } },
-      },
-    },
+    // Every list endpoint pages: an agent reads this API through one tool,
+    // and an unbounded list would land in its context whole.
+    request: { query: PageQuery },
+    responses: { 200: pagedResponse("items", ItemSchema) },
   }),
   async (c) => {
+    const { page, limit, offset, search } = pageParams(c.req.valid("query"));
     const db = getDB(c.env, { schema });
+    const where = search ? like(schema.items.name, "%" + search + "%") : undefined;
+    const total = await db.$count(schema.items, where);
     const items = await db
       .select()
       .from(schema.items)
-      .orderBy(desc(schema.items.createdAt));
-    return c.json(items);
+      .where(where)
+      .orderBy(desc(schema.items.createdAt))
+      .limit(limit)
+      .offset(offset);
+    return c.json({ items, total, page, limit }, 200);
   },
 );
 
@@ -255,8 +259,8 @@ export default api;
 CRUD template — the full list/create/update/delete surface:
 
 ```ts
-import { OpenAPIHono, createRoute, z } from "@clawnify/app";
-import { getDB, eq, desc } from "@clawnify/db";
+import { OpenAPIHono, createRoute, z, PageQuery, pageParams, pagedResponse } from "@clawnify/app";
+import { getDB, eq, desc, like } from "@clawnify/db";
 import * as schema from "./schema";
 
 type Env = { Bindings: { DB: D1Database } };
@@ -282,20 +286,24 @@ api.openapi(
     method: "get",
     path: "/api/items",
     summary: "List items",
-    responses: {
-      200: {
-        description: "List of items",
-        content: { "application/json": { schema: z.array(ItemSchema) } },
-      },
-    },
+    // Every list endpoint pages: an agent reads this API through one tool,
+    // and an unbounded list would land in its context whole.
+    request: { query: PageQuery },
+    responses: { 200: pagedResponse("items", ItemSchema) },
   }),
   async (c) => {
+    const { page, limit, offset, search } = pageParams(c.req.valid("query"));
     const db = getDB(c.env, { schema });
+    const where = search ? like(schema.items.title, "%" + search + "%") : undefined;
+    const total = await db.$count(schema.items, where);
     const items = await db
       .select()
       .from(schema.items)
-      .orderBy(desc(schema.items.createdAt));
-    return c.json(items);
+      .where(where)
+      .orderBy(desc(schema.items.createdAt))
+      .limit(limit)
+      .offset(offset);
+    return c.json({ items, total, page, limit }, 200);
   },
 );
 
@@ -462,7 +470,7 @@ export function App() {
 
   async function load() {
     const res = await fetch("/api/items");
-    setItems(await res.json());
+    setItems(((await res.json()) as { items: Item[] }).items);
   }
 
   useEffect(() => { load(); }, []);
@@ -789,6 +797,8 @@ queries, drop old column" over a single-step rename.
   via Drizzle. The raw SQL API has `json()` as a helper.
 - Skip the `org_id` filter on a user-facing query. Multi-tenant
   leak is the worst-class bug we can ship.
+- Return a whole table from a list endpoint, or a bare array. Every list
+  pages: `PageQuery`, `pageParams` and `pagedResponse` from `@clawnify/app`.
 - Read auth from `Authorization` / cookies / `Bearer` tokens, or
   hand-parse `X-Clawnify-*` headers. Use `user(c)` / `orgId(c)` /
   `caller(c)` from `@clawnify/app`.
@@ -807,6 +817,13 @@ queries, drop old column" over a single-step rename.
 - Give every route a clear `summary`/`description` and Zod-typed
   request/response so the agent can discover and call it via the
   OpenAPI spec.
+- Page every list endpoint with the helpers `@clawnify/app` exports:
+  `request: { query: PageQuery.extend({ /* filters */ }) }`,
+  `const { page, limit, offset, search } = pageParams(c.req.valid("query"))`
+  (25 per page by default, capped at 100, bad input falls back), and
+  `responses: { 200: pagedResponse("items", ItemSchema) }` for
+  `{ items, total, page, limit }`. Count with `db.$count(table, where)`:
+  `getDB` returns a union type that rejects `db.select({ ... })`.
 - Test locally with `npx clawnify@latest dev` before deploying; deploys go live at
   `https://<slug>.apps.clawnify.com` (the dashboard's preview pane shows
   the draft tier).
