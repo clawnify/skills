@@ -47,7 +47,8 @@ code to paste back at the `Paste code here if prompted >` prompt
 (useful over SSH — no port forwarding needed).
 
 **Headless / CI / agents — skip `login` entirely.** Set `CLAWNIFY_TOKEN` (a
-Supabase access token) and it wins over any stored session, reading/writing no
+login token: the `access_token` in `~/.clawnify/auth.json` on a machine that
+ran `clawnify login`) and it wins over any stored session, reading/writing no
 files; `CLAWNIFY_ORG_ID` (or a per-command `--org`) pins the org. This is how a
 coding agent runs the CLI without a browser.
 
@@ -124,7 +125,7 @@ clawnify docs [slug]       # usage README for an app (org index if omitted)
 `pull schema` refuses to clobber local uncommitted changes unless you
 pass `--force`.
 
-## Manage agents (the FDE surface)
+## Manage agents
 
 Drive an org's AI agents from the terminal — observe them and fix them. See the
 `fix-a-clawnify-agent` skill for the workflow; this is the command list. All
@@ -137,7 +138,7 @@ it delegates to. `clawnify agents list` prints both, sub-agents indented under
 the agent that owns them:
 
 ```
-Ash  (ready, nbg1)
+Ash  (ready, eu)
   id: 7c2f…
   sub-agents:
     └─ research  (Research)  4 sessions
