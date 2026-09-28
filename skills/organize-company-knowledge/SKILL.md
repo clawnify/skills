@@ -131,7 +131,8 @@ Call `company_knowledge_propose` once per topic with:
 - **`title`** — the canonical name ("Proposal Playbook", "Enterprise Pricing").
   A pattern/method name, not a client name.
 - **`description`** — one load-bearing line; it drives the knowledge index and
-  ranking. Required.
+  ranking. Always write one: if omitted, the server falls back to the doc's
+  opening line, which is rarely as good.
 - **`content`** — the distilled markdown. A clean, self-contained statement that
   **merges the sources and resolves overlaps** — the authoritative method the org
   would publish, not a summary of each file. Use `[[Other Doc Title]]` to link
