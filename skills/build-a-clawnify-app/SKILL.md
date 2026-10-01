@@ -844,3 +844,26 @@ If you're building this kind of app, you still use Drizzle's
 definitions). Only the dynamically-spawned per-collection tables
 need raw SQL. See open-cms's `src/server/schema-sync.ts` for the
 runtime DDL pattern.
+
+## When you're stuck: compare with a working app
+
+Every `Open*` repo under [github.com/clawnify](https://github.com/clawnify)
+is a complete, open-source app running on this platform. When your
+app hits an error you can't resolve from this document, find one that
+does the same thing and compare how it does it.
+
+- **Pick the repo by what it uses.** Each repo's `clawnify.json`
+  declares it: `app.credentials` lists its integrations (`metaads`,
+  `googleads`, ...), `app.database` and `app.storage` say whether it
+  uses D1 and R2. The README says what the app does.
+- **Read it without signing in.** List the repos at
+  `https://api.github.com/orgs/clawnify/repos?per_page=100`, and fetch
+  any file at `https://raw.githubusercontent.com/clawnify/<repo>/HEAD/<path>`
+  (`HEAD` resolves the default branch, which is not always `main`).
+- **Copy the solution, not the layout.** This document wins on
+  conventions. Many templates predate parts of it: most hand-write
+  `src/server/schema.sql` instead of `schema.ts`, some use Preact, and
+  older ones don't page their lists with the `@clawnify/app` helpers.
+- **If the error comes from a `@clawnify/*` package**, read what you
+  installed: `node_modules/@clawnify/<pkg>/README.md` and
+  `dist/index.d.ts`, which match your version exactly.
