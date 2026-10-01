@@ -161,11 +161,9 @@ Rules:
 import { createApp } from "@clawnify/app";
 import api from "./routes";
 
-type Env = { Bindings: { DB: D1Database } };
-
 // db:false — this app reads the database per request via getDB(c.env),
 // which needs no init middleware.
-const app = createApp<Env>({ title: "My app", version: "1.0.0", db: false });
+const app = createApp({ title: "My app", version: "1.0.0", db: false });
 
 app.route("/", api);
 
@@ -185,11 +183,11 @@ When storage (file uploads) is enabled, the entry also wires the R2
 bucket in a middleware before mounting routes:
 
 ```ts
-import { createApp } from "@clawnify/app";
+import { createApp, type AppEnv } from "@clawnify/app";
 import { initUploads } from "./uploads";
 import api from "./routes";
 
-type Env = { Bindings: { DB: D1Database; UPLOADS: R2Bucket } };
+type Env = AppEnv & { Bindings: { UPLOADS: R2Bucket } };
 
 const app = createApp<Env>({ title: "My app", version: "1.0.0", db: false });
 
@@ -214,12 +212,11 @@ Request bodies and params are Zod-validated (`c.req.valid("json")`,
 Blank template — one read route:
 
 ```ts
-import { OpenAPIHono, createRoute, z, PageQuery, pageParams, pagedResponse } from "@clawnify/app";
+import { OpenAPIHono, createRoute, z, PageQuery, pageParams, pagedResponse, type AppEnv } from "@clawnify/app";
 import { getDB, desc, like } from "@clawnify/db";
 import * as schema from "./schema";
 
-type Env = { Bindings: { DB: D1Database } };
-const api = new OpenAPIHono<Env>();
+const api = new OpenAPIHono<AppEnv>();
 
 const ItemSchema = z.object({
   id: z.number(),
@@ -259,12 +256,11 @@ export default api;
 CRUD template — the full list/create/update/delete surface:
 
 ```ts
-import { OpenAPIHono, createRoute, z, PageQuery, pageParams, pagedResponse } from "@clawnify/app";
+import { OpenAPIHono, createRoute, z, PageQuery, pageParams, pagedResponse, type AppEnv } from "@clawnify/app";
 import { getDB, eq, desc, like } from "@clawnify/db";
 import * as schema from "./schema";
 
-type Env = { Bindings: { DB: D1Database } };
-const api = new OpenAPIHono<Env>();
+const api = new OpenAPIHono<AppEnv>();
 
 const ItemSchema = z.object({
   id: z.number(),
@@ -342,6 +338,7 @@ api.openapi(
     },
     responses: {
       200: { description: "Updated", content: { "application/json": { schema: OkSchema } } },
+      400: { description: "Nothing to update", content: { "application/json": { schema: OkSchema } } },
     },
   }),
   async (c) => {
@@ -822,8 +819,12 @@ queries, drop old column" over a single-step rename.
   `const { page, limit, offset, search } = pageParams(c.req.valid("query"))`
   (25 per page by default, capped at 100, bad input falls back), and
   `responses: { 200: pagedResponse("items", ItemSchema) }` for
-  `{ items, total, page, limit }`. Count with `db.$count(table, where)`:
-  `getDB` returns a union type that rejects `db.select({ ... })`.
+  `{ items, total, page, limit }`. Count with `db.$count(table, where)`.
+- Type a helper that takes the database client as `DB<typeof schema>`
+  (from `@clawnify/db`), and a separate routes file's env as `AppEnv`
+  (from `@clawnify/app`). Never name the backend (`D1Database`,
+  `DrizzleD1Database`) or cast `getDB`'s result: the same app code is
+  served by more than one database backend.
 - Test locally with `npx clawnify@latest dev` before deploying; deploys go live at
   `https://<slug>.apps.clawnify.com` (the dashboard's preview pane shows
   the draft tier).
