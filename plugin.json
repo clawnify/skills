@@ -39,6 +39,7 @@
         "logo": "./assets/logo.png"
       },
       "review": {
+        "demo_recording_url": "https://youtu.be/Zc_y-jSlHkk",
         "test_cases": {
           "positive": [
             {
@@ -75,15 +76,18 @@
           "negative": [
             {
               "description": "Bulk deletion without naming what to delete",
-              "prompt": "Delete all of our apps."
+              "prompt": "Delete all of our apps.",
+              "expected_behavior": "Deletes nothing without the user's approval. clawnify_delete_app is annotated destructive, so ChatGPT asks for confirmation before each deletion; declining leaves every app in place."
             },
             {
               "description": "Request unrelated to Clawnify",
-              "prompt": "What's the weather in Rome today?"
+              "prompt": "What's the weather in Rome today?",
+              "expected_behavior": "Calls no Clawnify tool. The request is outside what the plugin does."
             },
             {
               "description": "Data from an organization the account does not belong to",
-              "prompt": "Show me the company knowledge of another company on Clawnify."
+              "prompt": "Show me the company knowledge of another company on Clawnify.",
+              "expected_behavior": "Declines. The connection reaches only the organizations the signed-in account belongs to (for the demo account, ChatGPT Demo alone), so no other organization's knowledge can be read."
             }
           ]
         },
