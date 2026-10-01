@@ -46,11 +46,12 @@ machine, sign-in completes automatically; otherwise the page shows a
 code to paste back at the `Paste code here if prompted >` prompt
 (useful over SSH — no port forwarding needed).
 
-**Headless / CI / agents — skip `login` entirely.** Set `CLAWNIFY_TOKEN` (a
-login token: the `access_token` in `~/.clawnify/auth.json` on a machine that
-ran `clawnify login`) and it wins over any stored session, reading/writing no
-files; `CLAWNIFY_ORG_ID` (or a per-command `--org`) pins the org. This is how a
-coding agent runs the CLI without a browser.
+**Headless / CI — skip `login`.** The person running the pipeline sets
+`CLAWNIFY_TOKEN` to a Clawnify sign-in token in that environment's secret
+store; it wins over any stored session and reads/writes no files.
+`CLAWNIFY_ORG_ID` (or a per-command `--org`) pins the org. Never read, copy or
+print credential files such as `~/.clawnify/auth.json` yourself: if there is no
+session and no `CLAWNIFY_TOKEN`, ask the person to run `clawnify login`.
 
 ### Organizations
 
@@ -116,7 +117,7 @@ clawnify link <app-id-or-slug>
 clawnify ls                # list deployed apps in the active org
 clawnify logs <app-id>     # build logs
 clawnify open <slug>       # open the live app in the browser
-clawnify rm <app-id>       # delete an app
+clawnify rm <app-id>       # delete an app (permanent: ask the person first)
 clawnify db generate       # refresh .clawnify/drizzle/*.sql from schema.ts
 clawnify pull schema --from <app-id-or-slug>   # snapshot the DEPLOYED schema to schema.sql (generated; read-only reference)
 clawnify docs [slug]       # usage README for an app (org index if omitted)
@@ -171,10 +172,13 @@ draft *is* what runs. `create`/`edit`/`publish` validate automatically and
 report per-node errors; fix and re-save. Prefer these verbs over pushing raw
 `flows/*.json` edits (which skip validation and versioning).
 
-**Boundary:** everything above is autonomous *except* the human-auth actions —
-connecting an integration (OAuth) and handing over a secret/API key. For those,
-explain the dashboard steps; never fake them. `agents create` / `env set`
-restart the gateway, so confirm before running them on a busy agent.
+**Boundary:** reading (`list`, `skills`, `sessions`, `pull`, `read`) is fine on
+your own. Anything that changes a live agent or app (`agents push`,
+`agents create`, `grant-skill`, `env set`, `flows create|edit|publish`,
+`rm`) needs the person's OK first: show them what will change. `agents create`
+and `env set` also restart the gateway. Connecting an integration (OAuth) and
+handing over a secret or API key are the person's alone: explain the dashboard
+steps; never fake them.
 
 **`agents create` makes a NEW sub-agent — it is never the way to "find" an
 existing one.** If you were looking for an agent and `agents list` didn't show
@@ -216,20 +220,22 @@ clawnify mcp                # stdio MCP bridge (Claude Desktop, etc.)
 `ai-files install` detects agent config dirs in the project (Claude
 Code, Cursor, OpenClaw, Codex, Aider) and writes the always-on rules
 block, installs bundled skills, and adds the Clawnify MCP server to
-`.mcp.json`. Target one agent with `--agent <name>`; undo with
+`.mcp.json`. It changes how those coding agents behave in this project, so
+run it only when the person asks, in their own project, after telling them
+what it will add. Target one agent with `--agent <name>`; undo with
 `clawnify ai-files uninstall`.
 
 ## The raw escape hatch
 
 ```bash
-clawnify api /agents                          # any GET
-clawnify api /apps -X POST -d '{…}'           # any method + JSON body
+clawnify api /agents                          # read anything the commands don't show
 ```
 
-`clawnify api <path>` makes an authenticated request to any Clawnify API path —
-same auth and org scoping as every other command (it can only do what you can).
-Use it for anything the porcelain doesn't wrap; the curated commands stay small
-because this is always there.
+`clawnify api <path>` makes an authenticated request to a Clawnify API path,
+with the same auth and org scoping as every other command (it can only do what
+the signed-in person can). Use it to read what the commands don't show. For a
+change, use the dedicated command; if none exists, show the person the exact
+request (`-X POST|PUT|DELETE -d '{…}'`) and get their OK before sending it.
 
 ## Tips
 

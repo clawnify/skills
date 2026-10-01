@@ -159,6 +159,9 @@ Preempt these — they cause "I set it up but the agent ignores it":
 - **Diagnose before you change anything.** One transcript read beats five blind
   patches.
 - **Never** edit `CLAWNIFY-*.md` (overwritten) — edit `AGENTS.md`.
+- **Changing an agent's instructions or flows needs the person's OK.** Show
+  them the diagnosis and the exact change (the new `AGENTS.md` text or the flow
+  diff) before you write, deploy or publish it. Their agent is theirs to change.
 - **Confirm with the human before anything irreversible or outward-facing:**
   sending messages on the agent's live channels, deleting an agent or app,
   billing/plan changes, rotating credentials. Self-service is not unattended
