@@ -16,7 +16,7 @@
       "interface": {
         "displayName": "Clawnify",
         "shortDescription": "Knowledge, agents and apps",
-        "longDescription": "Clawnify runs AI agents, business apps and a company knowledge base for your organization. Connect your Clawnify account to search and cite your company's policies and documents, see what your AI agents did and adjust their instructions, look up your apps and flows and work with their data, and keep shared memory and tasks. The included skills cover building Clawnify apps and websites and finding out why an agent misbehaves. Requires a Clawnify account. It only reaches the organizations the signed-in person belongs to.",
+        "longDescription": "Clawnify runs AI agents, business apps and a company knowledge base for your organization. Connect your Clawnify account to search and cite your company's policies and documents, see what your AI agents did and adjust their instructions, look up your apps and flows and work with their data, and keep shared memory and tasks. The included skills cover building Clawnify apps and websites and organizing company knowledge. Requires a Clawnify account. It only reaches the organizations the signed-in person belongs to.",
         "developerName": "Clawnify",
         "category": "Productivity",
         "capabilities": [
@@ -95,7 +95,7 @@
         "commerce_description": "Clawnify does not sell products or take payments in ChatGPT or Codex."
       },
       "publication": {
-        "release_notes": "First release: the Clawnify connector (company knowledge, projects, memory, tasks, agents, apps and flows) and six skills for building and running on Clawnify."
+        "release_notes": "First release: the Clawnify connector (company knowledge, projects, memory, tasks, agents, apps and flows) and four skills for building on Clawnify and organizing company knowledge."
       }
     }
   }
