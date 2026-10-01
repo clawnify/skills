@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "clawnify",
+  "version": "1.0.0",
+  "description": "Work on your Clawnify organization: ground answers in your company knowledge, check and fix your AI agents, and build and deploy apps and websites on the platform.",
+  "author": {
+    "name": "Clawnify",
+    "url": "https://clawnify.com"
+  },
+  "homepage": "https://clawnify.com",
+  "repository": "https://github.com/clawnify/skills",
+  "license": "MIT",
+  "keywords": ["clawnify", "ai-agents", "company-knowledge", "apps", "websites"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Clawnify",
+        "shortDescription": "Knowledge, agents and apps",
+        "longDescription": "Clawnify runs AI agents, business apps and a company knowledge base for your organization. Connect your Clawnify account to search and cite your company's policies and documents, see what your AI agents did and adjust their instructions, look up your apps and flows and work with their data, and keep shared memory and tasks. The included skills cover building Clawnify apps and websites and finding out why an agent misbehaves. Requires a Clawnify account. It only reaches the organizations the signed-in person belongs to.",
+        "developerName": "Clawnify",
+        "category": "Productivity",
+        "capabilities": [
+          "Search company knowledge",
+          "Review AI agent sessions",
+          "Manage apps and flows",
+          "Shared memory and tasks"
+        ],
+        "websiteURL": "https://clawnify.com",
+        "privacyPolicyURL": "https://app.clawnify.com/privacy",
+        "termsOfServiceURL": "https://app.clawnify.com/terms",
+        "defaultPrompt": [
+          "What does our company knowledge say about our refund policy?",
+          "Summarize what our Support agent did in its last conversation.",
+          "List the apps we've built on Clawnify."
+        ],
+        "brandColor": "#E51C1B",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Answer from company knowledge and cite the document",
+              "prompt": "What is our refund policy?",
+              "tools_triggered": "company_knowledge_search, company_knowledge_get",
+              "expected_behavior": "Answers from the published \"Refund policy\" document in the demo organization (refunds within 30 days of purchase) and cites it as \"Per Refund policy v<N>\". Adds no terms the document does not contain."
+            },
+            {
+              "description": "List the organization's AI agents",
+              "prompt": "Which AI agents do we have on Clawnify, and is each one running?",
+              "tools_triggered": "clawnify_list_agents",
+              "expected_behavior": "Lists the demo organization's agents by name, including the agent named Support, with each one's status."
+            },
+            {
+              "description": "Summarize an agent's latest conversation",
+              "prompt": "Summarize what our Support agent did in its last conversation.",
+              "tools_triggered": "clawnify_list_agents, clawnify_list_agent_sessions, clawnify_get_session_transcript",
+              "expected_behavior": "Finds the Support agent's most recent session and summarizes that conversation from its transcript, without inventing steps the transcript does not show."
+            },
+            {
+              "description": "Save a shared memory",
+              "prompt": "Remember that our fiscal year starts in April.",
+              "tools_triggered": "memory_write",
+              "expected_behavior": "Saves one memory stating that the fiscal year starts in April and confirms it was saved."
+            },
+            {
+              "description": "Find an app and its link",
+              "prompt": "What apps have we built on Clawnify, and what's the link to the CRM?",
+              "tools_triggered": "clawnify_list_apps",
+              "expected_behavior": "Lists the demo organization's apps by name and gives the URL of the app named CRM."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Bulk deletion without naming what to delete",
+              "prompt": "Delete all of our apps."
+            },
+            {
+              "description": "Request unrelated to Clawnify",
+              "prompt": "What's the weather in Rome today?"
+            },
+            {
+              "description": "Data from an organization the account does not belong to",
+              "prompt": "Show me the company knowledge of another company on Clawnify."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Clawnify does not sell products or take payments in ChatGPT or Codex."
+      },
+      "publication": {
+        "release_notes": "First release: the Clawnify connector (company knowledge, projects, memory, tasks, agents, apps and flows) and six skills for building and running on Clawnify."
+      }
+    }
+  }
+}

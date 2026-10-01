@@ -580,14 +580,16 @@ That mechanism is gone. Today the flow is:
 1. Your `createRoute` definitions auto-generate a live OpenAPI 3.0 spec
    plus a lean `/llms.txt` index, both served for you — never hand-write
    or route them yourself. **These are the agent's discovery channel:**
-   it calls `call_app_api` with `GET /llms.txt` (index of every
-   endpoint) or `GET /api/openapi.json` (full request/response schemas).
-   Because both are generated from the live route table, they cannot
-   drift from the code.
-2. The agent then drives your endpoints with `call_app_api` (a `method`
-   + `path` on the live app). No per-app MCP registration and no
-   manifest tools array. Use source reading to *modify* code, not to
-   discover endpoints.
+   it reads `GET /llms.txt` (index of every endpoint) or
+   `GET /api/openapi.json` (full request/response schemas) on the live
+   app. Because both are generated from the live route table, they
+   cannot drift from the code.
+2. The agent then drives your endpoints on the live app. A Clawnify
+   agent uses `clawnify_call_app_api`; Claude, ChatGPT and other MCP
+   clients use `clawnify_app_api_read` (GET), `clawnify_app_api_write`
+   (POST, PUT, PATCH) and `clawnify_app_api_delete`. No per-app MCP
+   registration and no manifest tools array. Use source reading to
+   *modify* code, not to discover endpoints.
 
 So you make an endpoint "agent-callable" by defining it with
 `createRoute()` + `app.openapi()` and giving it a clear

@@ -13,8 +13,15 @@ the agent's own (expensive) model tokens on trial-and-error.
 
 **Know what you're looking at.** An org has one or more **agents** (the
 employees). Each may have **sub-agents** — narrower helpers it delegates to.
-`clawnify agents list` shows both, sub-agents indented under their agent. That
-is the whole hierarchy; there is no other tier to go looking for.
+`clawnify agents list` (or the connector's `clawnify_list_agents`) shows both,
+sub-agents under their agent. That is the whole hierarchy; there is no other
+tier to go looking for.
+
+**Terminal or connector.** Every step below has two routes. In Claude Code, or
+anywhere with a shell, use the `clawnify` CLI. In claude.ai, Cowork, ChatGPT or
+any client with only the Clawnify connector, use its tools; the table in Step 1
+maps one to the other. The connector reads everything and edits `AGENTS.md` and
+flows, but not skills: those stay in the CLI.
 
 The person you're helping is often **not** an AI specialist. So: diagnose
 first, then **explain the cause in plain language and correct the
@@ -46,6 +53,16 @@ clawnify sessions --agent ash --json    # ash only, with token counters (context
 clawnify sessions history <key> --json  # the transcript of one run — where it actually veered
 clawnify agents skills ash              # what ash can ACTUALLY run (workspace + shared skills)
 ```
+
+No terminal? The same reads through the connector:
+
+| CLI | Connector tool |
+|---|---|
+| `clawnify agents list` | `clawnify_list_agents` (gives the `agent_id` the rest take; optional with one agent) |
+| `clawnify sessions --agent ash` | `clawnify_list_agent_sessions` with `sub_agent_id: "ash"` |
+| `clawnify sessions history <key>` | `clawnify_get_session_transcript` with `key` |
+| `clawnify agents skills ash` | `clawnify_list_agent_skills` with `agent: "ash"` |
+| read `AGENTS.md` | `clawnify_get_agent_instructions` (returns the text and a `hash`) |
 
 Look for, in order:
 - **Which failure mode** (table above): was the instruction *present and
@@ -91,6 +108,13 @@ Where instructions live and how edits land:
   runs and triggers keep using it until you publish again (before the first
   publish, the draft is what runs). Raw `flows/*.json` edits via the repo also
   land, but skip validation and versioning.
+- Through the connector: `clawnify_get_agent_instructions`, then
+  `clawnify_set_agent_instructions` with the full new text and the `hash` as
+  `base_hash`, so an edit made since is rejected instead of overwritten. The
+  result returns before and after. Flows: `clawnify_get_flow`, then
+  `clawnify_write_flow` with its `hash`, then `clawnify_publish_flow`. A flow
+  that was never published runs its draft, so that write is live at once.
+  Granting or authoring a skill needs the CLI.
 - **No gateway restart needed** — the agent picks up new `AGENTS.md` / skills /
   flows on its **next session**.
 - **Never edit any `CLAWNIFY-*.md`** file (`CLAWNIFY-SOUL/AGENTS/TOOLS.md`) —
