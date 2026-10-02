@@ -822,6 +822,13 @@ queries, drop old column" over a single-step rename.
   (25 per page by default, capped at 100, bad input falls back), and
   `responses: { 200: pagedResponse("items", ItemSchema) }` for
   `{ items, total, page, limit }`. Count with `db.$count(table, where)`.
+- Keep a long text field an agent edits again and again (HTML, a
+  document body, a template) as one top-level string of the record,
+  with GET and a *partial* update (`PATCH`, or a PUT that keeps the
+  fields it is not sent) on the same path, returning the updated
+  record. Agents then read it in parts and change it with literal
+  `old_text` → `new_text` edits instead of sending all of it back; the
+  platform provides that, so don't build a find/replace endpoint.
 - Type a helper that takes the database client as `DB<typeof schema>`
   (from `@clawnify/db`), and a separate routes file's env as `AppEnv`
   (from `@clawnify/app`). Never name the backend (`D1Database`,
