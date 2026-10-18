@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "clawnify",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Work on your Clawnify organization: ground answers in your company knowledge, check and fix your AI agents, and build and deploy apps and websites on the platform.",
   "author": {
     "name": "Clawnify",
