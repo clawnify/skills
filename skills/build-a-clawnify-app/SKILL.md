@@ -751,9 +751,9 @@ tolerance (~5 min) before doing anything:
 app.post("/api/internal/publish", async (c) => {
   const raw = await c.req.text();
   const ok = await verifyDelivery(raw, {
-    signature: c.req.header("x-clawnify-signature"),
-    timestamp: c.req.header("x-clawnify-timestamp"),
-    keyId: c.req.header("x-clawnify-key-id"),
+    signature: c.req.header("x-queue-signature"),
+    timestamp: c.req.header("x-queue-timestamp"),
+    keyId: c.req.header("x-queue-key-id"),
   });
   if (!ok) return c.json({ error: "bad signature" }, 401);
   const { post_id } = JSON.parse(raw);
@@ -765,6 +765,16 @@ app.post("/api/internal/publish", async (c) => {
 Each fire is a normal Worker request — size the work to one invocation (publish a
 post, send a digest). For long compute *now* (not deferred), hold the request
 open and return when done; don't fire-and-forget past the response.
+
+**When the queue says no.** A refused enqueue answers `{ "error", "detail" }`
+(`enqueueJob` throws `ClawnifyQueueError` with `code`, `status` and `message`).
+Past the plan's monthly included jobs each job costs credits, so only an empty
+balance (`402 insufficient_credits`) or no active plan (`403 quota_exceeded`)
+refuses one; show its `detail` to the owner as it is, since it says where to fix
+it. A job that books the next one (a daily sync) must never swallow that
+refusal: keep it, show it as a banner on the app's main page, and return it from
+the app's status endpoint. Every service error code:
+https://docs.clawnify.com/concepts/service-errors
 
 ## Migrations
 
