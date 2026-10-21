@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "clawnify",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Work on your Clawnify organization: ground answers in your company knowledge, check and fix your AI agents, and build and deploy apps and websites on the platform.",
   "author": {
     "name": "Clawnify",
@@ -95,7 +95,7 @@
         "commerce_description": "Clawnify does not sell products or take payments in ChatGPT or Codex."
       },
       "publication": {
-        "release_notes": "First release: the Clawnify connector (company knowledge, projects, memory, tasks, agents, apps and flows) and four skills for building on Clawnify and organizing company knowledge."
+        "release_notes": "First public release (1.0.0 was submitted but not published): the Clawnify connector (company knowledge, projects, memory, tasks, agents, apps and flows) and four skills for building on Clawnify and organizing company knowledge. Changed since the 1.0.0 submission, on the connected server: listing tasks and searching company knowledge no longer write anything, so both are read-only, and writing a flow, publishing a flow and replacing an agent's instructions are now marked open-world, because what they change runs on schedules and webhooks and reaches people and services outside the organization."
       }
     }
   }
