@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "clawnify",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Work on your Clawnify organization: ground answers in your company knowledge, check and fix your AI agents, and build and deploy apps and websites on the platform.",
   "author": {
     "name": "Clawnify",
@@ -22,7 +22,7 @@
         "capabilities": [
           "Search company knowledge",
           "Review AI agent sessions",
-          "Manage apps and flows",
+          "Manage apps and their data",
           "Shared memory and tasks"
         ],
         "websiteURL": "https://clawnify.com",
@@ -95,7 +95,7 @@
         "commerce_description": "Clawnify does not sell products or take payments in ChatGPT or Codex."
       },
       "publication": {
-        "release_notes": "First public release (1.0.0 was submitted but not published): the Clawnify connector (company knowledge, projects, memory, tasks, agents, apps and flows) and four skills for building on Clawnify and organizing company knowledge. Changed since the 1.0.0 submission, on the connected server: listing tasks and searching company knowledge no longer write anything, so both are read-only, and writing a flow, publishing a flow and replacing an agent's instructions are now marked open-world, because what they change runs on schedules and webhooks and reaches people and services outside the organization."
+        "release_notes": "First public release (1.0.0 was submitted but not published): the Clawnify connector for company knowledge, projects, memory, tasks, agents and apps, and four skills for building on Clawnify and organizing company knowledge. Changed since the 1.0.0 submission, on the connected server: listing tasks and searching company knowledge no longer write anything, so both are read-only; replacing an agent's instructions is now marked open-world, because the agent goes on to answer people outside the organization and to run scheduled work; and ChatGPT no longer writes, publishes or runs flows, though it can still look up flows and their runs."
       }
     }
   }
