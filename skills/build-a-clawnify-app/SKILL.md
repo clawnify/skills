@@ -416,6 +416,8 @@ app.get("/api/notes", async (c) => {
 | `orgId(c)` | Organization UUID — the tenant key. Filter every user-facing query by it. |
 | `user(c)` | `{ id, email, name, avatarUrl, firstName, lastName }` — or **`null`** when the caller isn't a person. |
 | `caller(c)` | `user`, `api`, `agent`, `agent-browser`, `public`, `bypass`, `system`, or `app`. |
+| `hasRole(c, min)` | Whether the caller may do a task meant for `min` (`member` < `admin` < `owner`). Use it to gate admin-only tasks. Needs `@clawnify/app` 0.4.5 or later. |
+| `role(c)` | `owner`, `admin` or `member` on Team plans and up; **`null`** below that, where every member is treated the same. For display, not for gating. |
 
 Two rules that catch people out:
 
@@ -429,7 +431,13 @@ Two rules that catch people out:
   them or treat them as someone's legal name — store `name`.
 
 Don't build app-level users, roles, or permissions. Authorization
-already happened at the perimeter.
+already happened at the perimeter. For a task meant for admins, use
+`hasRole(c, "admin")`: it checks the role where the plan has role tiers
+and lets every person through where it does not, so one check works on
+every plan. It fails closed: a caller with no person behind it, or a
+request with no identity at all (local `pnpm dev`), passes no check, so a
+gated endpoint answering 403 there is the gate working. Don't loosen a
+gate to make a test pass. Never gate on `role(c)` by hand.
 
 ## `src/client` — React + plain fetch
 
