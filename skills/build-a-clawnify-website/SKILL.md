@@ -1,6 +1,6 @@
 ---
 name: build-a-clawnify-website
-description: Build and ship a Clawnify website — Astro on Cloudflare Workers, the built-in form system (never hand-roll a form), images and assets, and the draft-then-publish deploy flow. Use when creating or editing a Clawnify website, or when a site needs a contact/waitlist/signup form.
+description: Build and ship a Clawnify website (Astro on Cloudflare Workers): the built-in form system (never hand-roll a form), images and assets, and the deploy flow (live, or a draft when the chat has one open). Use when creating or editing a Clawnify website, or when a site needs a contact/waitlist/signup form.
 ---
 
 # Build a Clawnify website
@@ -148,16 +148,16 @@ Put them in `public/` and reference them with an absolute path (`/img/hero.jpg`)
 They're served as static files. Pull in real assets at real resolution rather
 than linking someone else's CDN from your markup.
 
-## Deploying: draft first, then publish
+## Deploying: live, unless the chat has a draft open
 
 ```bash
-npx clawnify@latest deploy   # → the DRAFT site, visible only to your org
+npx clawnify@latest deploy   # → the LIVE site
 ```
 
-Deploying **never** changes the live site. Going live is a separate, explicit
-step: review the draft, then **Publish to live** in the dashboard. Tell the user
-this — a deploy that "worked" but didn't appear on the live site is almost
-always someone expecting deploy to publish.
+A deploy (or a push to the workspace repo) goes live. The exception: when the
+site has unpublished changes made from the dashboard chat, the deploy joins
+them on the DRAFT site, visible only to your org, and **Publish to live** in the
+dashboard ships both. The CLI says which happened; pass it on to the user.
 
 ## Pinning the org
 
