@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "clawnify",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Work on your Clawnify organization: ground answers in your company knowledge, check and fix your AI agents, and build and deploy apps and websites on the platform.",
   "author": {
     "name": "Clawnify",
@@ -16,13 +16,13 @@
       "interface": {
         "displayName": "Clawnify",
         "shortDescription": "Knowledge, agents and apps",
-        "longDescription": "Clawnify runs AI agents, business apps and a company knowledge base for your organization. Connect your Clawnify account to search and cite your company's policies and documents, see what your AI agents did and adjust their instructions, look up your apps and flows and work with their data, and keep shared memory and tasks. The included skills cover building Clawnify apps and websites and organizing company knowledge. Requires a Clawnify account. It only reaches the organizations the signed-in person belongs to.",
+        "longDescription": "Clawnify runs AI agents, business apps and a company knowledge base for your organization. Connect your Clawnify account to search and cite your company's policies and documents, see what your AI agents did and adjust their instructions, open your apps in the conversation, look up your flows and work with your apps' data, and keep shared memory and tasks. The included skills cover building Clawnify apps and websites and organizing company knowledge. Requires a Clawnify account. It only reaches the organizations the signed-in person belongs to.",
         "developerName": "Clawnify",
         "category": "Productivity",
         "capabilities": [
           "Search company knowledge",
           "Review AI agent sessions",
-          "Manage apps and their data",
+          "Open and work in your apps",
           "Shared memory and tasks"
         ],
         "websiteURL": "https://clawnify.com",
@@ -32,7 +32,7 @@
         "defaultPrompt": [
           "What does our company knowledge say about our refund policy?",
           "Summarize what our Support agent did in its last conversation.",
-          "List the apps we've built on Clawnify."
+          "Open our CRM app."
         ],
         "brandColor": "#E51C1B",
         "composerIcon": "./assets/logo.png",
@@ -67,10 +67,10 @@
               "expected_behavior": "Saves one memory stating that the fiscal year starts in April and confirms it was saved."
             },
             {
-              "description": "Find an app and its link",
-              "prompt": "What apps have we built on Clawnify, and what's the link to the CRM?",
-              "tools_triggered": "clawnify_list_apps",
-              "expected_behavior": "Lists the demo organization's apps by name and gives the URL of the app named CRM."
+              "description": "Open an app in the conversation",
+              "prompt": "Open our CRM app.",
+              "tools_triggered": "clawnify_list_apps, clawnify_open_app",
+              "expected_behavior": "Finds the demo organization's app named CRM and opens it: on ChatGPT on the web the CRM itself appears in the conversation, signed in as the reviewer, and its records can be browsed there; on a phone a card appears with an Open in Clawnify button."
             }
           ],
           "negative": [
@@ -95,7 +95,7 @@
         "commerce_description": "Clawnify does not sell products or take payments in ChatGPT or Codex."
       },
       "publication": {
-        "release_notes": "First public release (1.0.0 was submitted but not published): the Clawnify connector for company knowledge, projects, memory, tasks, agents and apps, and four skills for building on Clawnify and organizing company knowledge. Changed since the 1.0.0 submission, on the connected server: listing tasks and searching company knowledge no longer write anything, so both are read-only; replacing an agent's instructions is now marked open-world, because the agent goes on to answer people outside the organization and to run scheduled work; and ChatGPT no longer writes, publishes or runs flows, though it can still look up flows and their runs."
+        "release_notes": "Open your Clawnify apps in the conversation. Ask ChatGPT to open an app and it shows the app itself, signed in as you, where you can work in it as you do in Clawnify; on a phone, a button opens it in your browser. Confirmations, new-tab links and downloads in an app work inside the conversation too."
       }
     }
   }
