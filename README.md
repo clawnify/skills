@@ -59,8 +59,15 @@ Clawnify connector, and cites company knowledge as `Per <Title> v<N>`.
 The plugin holds no data of its own. When Claude calls a Clawnify tool, the
 request, including the text of your question or the content Claude is writing,
 goes to `mcp.clawnify.com`, Clawnify's server, signed in as you. Every request
-is scoped to your organization and your role in it. The skills are plain
-instructions and send nothing anywhere. Clawnify's
+is scoped to your organization and your role in it.
+
+The skills are plain instructions. Four of them (`build-a-clawnify-app`,
+`build-a-clawnify-website`, `use-the-clawnify-cli` and `fix-a-clawnify-agent`)
+tell the agent to run the Clawnify CLI, which sends what you ask it to, such as
+an app's or website's source when you deploy or an agent's instructions when
+you push them, to Clawnify's own servers (`app.clawnify.com`,
+`provision.clawnify.com`, `services.clawnify.com`), signed in as you. No skill
+sends data anywhere else. Clawnify's
 [privacy policy](https://app.clawnify.com/privacy) covers how that data is handled.
 
 ## License
