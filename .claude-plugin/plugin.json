@@ -7,6 +7,7 @@
     "url": "https://clawnify.com"
   },
   "homepage": "https://clawnify.com",
+  "privacyPolicyUrl": "https://app.clawnify.com/privacy",
   "repository": "https://github.com/clawnify/skills",
   "license": "MIT",
   "keywords": ["clawnify", "ai-agents", "company-knowledge", "apps", "websites"]

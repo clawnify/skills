@@ -682,9 +682,9 @@ integration apps, so get it right:
   and `run()`. When unsure, use `run()`.
 - **Need exact paths/arguments for a raw-REST provider?** Some carry
   a `spec_url` (the provider's published OpenAPI spec) —
-  `clawnify connections list --json` shows it. Download and query it —
-  `curl -s <spec_url> -o spec.json && jq '.paths | keys' spec.json` —
-  never read a whole spec into context (they run to 10+ MB).
+  `clawnify connections list --json` shows it. Save the spec to a file
+  and query the file, for example `jq '.paths | keys' spec.json`; never
+  read a whole spec into context (they run to 10+ MB).
 - **Never fall back to raw `fetch`** against a provider API, and
   never invent endpoints or guess tokens.
 
@@ -721,23 +721,19 @@ it degrades to a no-op.
 **Enqueue** a deferred call to your own endpoint:
 
 ```ts
-// POST https://services.clawnify.com/queue/enqueue  (Bearer CLAWNIFY_TOKEN)
-const res = await fetch("https://services.clawnify.com/queue/enqueue", {
-  method: "POST",
-  headers: { Authorization: `Bearer ${env.CLAWNIFY_TOKEN}`, "Content-Type": "application/json" },
-  body: JSON.stringify({
-    target_url: `${origin}/api/internal/publish`, // an endpoint on THIS app
-    payload: { post_id: id },                     // echoed back to you on fire
-    run_at: new Date(whenMs).toISOString(),
-    idempotency_key: `post:${id}:${whenMs}`,       // same key dedupes; new time = new job
-  }),
+import { enqueueJob, cancelJob, verifyDelivery } from "@clawnify/queue";
+
+const job = await enqueueJob(env, {
+  targetUrl: `${origin}/api/internal/publish`, // an endpoint on THIS app
+  payload: { post_id: id },                    // echoed back to you on fire
+  runAt: new Date(whenMs),
+  idempotencyKey: `post:${id}:${whenMs}`,      // same key dedupes; new time = new job
 });
-const { job_id } = await res.json();  // store it to cancel/reschedule
+// job.id: store it to cancel or reschedule
 ```
 
-Persist `job_id` on the row (e.g. `posts.queue_job_id`). **Cancel / reschedule**:
-`DELETE https://services.clawnify.com/queue/jobs/{job_id}` (Bearer token);
-reschedule = cancel + a fresh enqueue.
+Persist `job.id` on the row (e.g. `posts.queue_job_id`). **Cancel / reschedule**:
+`await cancelJob(env, jobId)`; reschedule = cancel + a fresh enqueue.
 
 **The callback endpoint is a public, signature-verified route.** The queue calls
 `target_url` from outside the perimeter, so the endpoint must be declared in

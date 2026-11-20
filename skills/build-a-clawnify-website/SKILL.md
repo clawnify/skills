@@ -1,6 +1,6 @@
 ---
 name: build-a-clawnify-website
-description: Build and ship a Clawnify website (Astro on Cloudflare Workers): the built-in form system (never hand-roll a form), images and assets, and the deploy flow (live, or a draft when the chat has one open). Use when creating or editing a Clawnify website, or when a site needs a contact/waitlist/signup form.
+description: "Build and ship a Clawnify website (Astro on Cloudflare Workers): the built-in form system (never hand-roll a form), images and assets, and the deploy flow (live, or a draft when the chat has one open). Use when creating or editing a Clawnify website, or when a site needs a contact/waitlist/signup form."
 ---
 
 # Build a Clawnify website
