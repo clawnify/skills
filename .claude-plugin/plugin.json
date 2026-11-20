@@ -8,6 +8,9 @@
   },
   "homepage": "https://clawnify.com",
   "privacyPolicyUrl": "https://app.clawnify.com/privacy",
+  "termsOfServiceUrl": "https://app.clawnify.com/terms",
+  "supportUrl": "https://docs.clawnify.com/support/",
+  "documentationUrl": "https://docs.clawnify.com/mcp/",
   "repository": "https://github.com/clawnify/skills",
   "license": "MIT",
   "keywords": ["clawnify", "ai-agents", "company-knowledge", "apps", "websites"]
