@@ -70,7 +70,7 @@
               "description": "Open an app in the conversation",
               "prompt": "Open our CRM app.",
               "tools_triggered": "clawnify_list_apps, clawnify_open_app",
-              "expected_behavior": "Finds the demo organization's app named CRM and opens it: on ChatGPT on the web the CRM itself appears in the conversation, signed in as the reviewer, and its records can be browsed there; on a phone a card appears with an Open in Clawnify button."
+              "expected_behavior": "Finds the demo organization's app named CRM and opens it: on ChatGPT on the web the CRM itself appears in the conversation, signed in as the reviewer, and its records can be browsed there; on a phone, or in a browser that keeps no cookies inside the conversation, a card appears with an Open in Clawnify button instead."
             }
           ],
           "negative": [
@@ -95,7 +95,7 @@
         "commerce_description": "Clawnify does not sell products or take payments in ChatGPT or Codex."
       },
       "publication": {
-        "release_notes": "Open your Clawnify apps in the conversation. Ask ChatGPT to open an app and it shows the app itself, signed in as you, where you can work in it as you do in Clawnify; on a phone, a button opens it in your browser. Confirmations, new-tab links and downloads in an app work inside the conversation too."
+        "release_notes": "Open your Clawnify apps in the conversation. Ask ChatGPT to open an app and it shows the app itself, signed in as you, where you can work in it as you do in Clawnify; on a phone, a button opens it in your browser. Confirmations and links that open a new tab work inside the conversation too."
       }
     }
   }
