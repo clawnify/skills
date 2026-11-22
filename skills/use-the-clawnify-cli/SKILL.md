@@ -24,8 +24,10 @@ npx clawnify@latest deploy          # → https://<slug>.apps.clawnify.com
   globally or pin a version — the CLI ships guards and self-heals
   continuously, and a stale copy misses them. Reference blocks below
   show bare `clawnify <cmd>` for brevity; run them with the full
-  `npx clawnify@latest` form. (Scaffolded apps' package scripts —
-  `pnpm dev`, `pnpm deploy` — already delegate correctly.)
+  `npx clawnify@latest` form. (Scaffolded apps' package scripts,
+  `npm run dev` and `npm run deploy`, delegate to the CLI too. With pnpm
+  write `pnpm run deploy`: bare `pnpm deploy` is pnpm's own command and
+  never reaches the script.)
 
 - **Auth once, org lazily.** `login` only signs you in; the first
   command that needs an organization asks once and remembers it.
