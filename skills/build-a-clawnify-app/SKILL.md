@@ -14,6 +14,12 @@ working app from scratch. Follow it literally. The patterns here
 are exactly what `clawnify init` scaffolds and what the platform
 expects.
 
+**Before you build one from scratch:** if the user asked for a common kind
+of app (a CRM, bookings, recruiting, a HubSpot alternative), run
+`npx clawnify@latest templates "<what they asked for>"`. A reviewed
+open-source app may already do it; its `deploy --from` command ships it in
+about 30 seconds, no account needed. Confirm with the user before choosing.
+
 ## TL;DR
 
 - **One stack.** Hono + React + Vite + `@hono/zod-openapi` +

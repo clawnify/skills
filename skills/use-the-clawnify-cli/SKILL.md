@@ -14,10 +14,12 @@ For **authoring app code** (stack, schema, route patterns), use the
 ## TL;DR
 
 ```bash
-npx clawnify@latest login           # browser sign-in, paste-code fallback
-npx clawnify@latest init my-app     # scaffold an app or website
-cd my-app && npx clawnify@latest dev
-npx clawnify@latest deploy          # → https://<slug>.apps.clawnify.com
+npx clawnify@latest templates crm   # a ready-made app for what was asked?
+npx clawnify@latest deploy --from clawnify/OpenCRM   # ...then ship it as is
+npx clawnify@latest init my-app     # or scaffold an app or website
+cd my-app && npm install && npx clawnify@latest dev
+npx clawnify@latest deploy          # signed out: private link + claim link
+npx clawnify@latest login           # only to work in an existing organization
 ```
 
 - **Always invoke as `npx clawnify@latest <command>`.** Never install
@@ -67,6 +69,19 @@ clawnify org use <slug-or-id> # switch the active org
 No need to pick one up front — the first org-scoped command prompts
 once and persists the choice. Any single command can override with
 `--org <slug-or-id>`.
+
+## Start from a ready-made app
+
+```bash
+clawnify templates "<what the user asked for>"   # best five, sidebar names + deploy command
+clawnify templates                               # all of them
+clawnify templates crm --json                    # for scripts and agents
+clawnify deploy --from clawnify/OpenCRM          # deploy one (works signed out)
+```
+
+The templates are open-source apps Clawnify reviewed; a deploy builds the
+reviewed commit and keeps the app upgradable. Check them before building a
+common kind of app from scratch, and confirm the choice with the person.
 
 ## Create and run locally
 
